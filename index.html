@@ -1,0 +1,2153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fruit Slash — Enhanced</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;}
+html,body{width:100%;height:100%;}
+body{background:#07071a;font-family:'Segoe UI',Arial,sans-serif;overflow:hidden;touch-action:none;position:fixed;inset:0;}
+canvas{position:fixed;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;}
+#ui{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;}
+
+/* ── SCREENS ── */
+.screen{display:none;position:fixed;top:0;left:0;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;z-index:50;}
+.screen.active{display:flex;}
+.screen-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 50% 40%,#0d0d35 0%,#07071a 70%);z-index:-1;}
+
+/* ── TITLE ── */
+.logo-fruits{font-size:clamp(14px,2.5vw,22px);letter-spacing:6px;margin-bottom:6px;animation:floatY 3s ease-in-out infinite;}
+.game-title{font-size:clamp(38px,7vw,88px);font-weight:900;letter-spacing:3px;line-height:1;
+  background:linear-gradient(135deg,#ff6b35 0%,#ffd700 50%,#ff1493 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  animation:titlePulse 2.5s ease-in-out infinite;}
+.tagline{color:#6677aa;font-size:clamp(11px,1.5vw,15px);letter-spacing:5px;margin:8px 0 36px;text-transform:uppercase;}
+
+/* ── BUTTONS ── */
+.btn{background:linear-gradient(135deg,#ff6b35,#e0184a);color:#fff;border:none;
+  padding:13px 36px;font-size:clamp(14px,1.8vw,18px);font-weight:700;border-radius:50px;
+  cursor:pointer;margin:6px;transition:transform .15s,box-shadow .15s;pointer-events:all;
+  letter-spacing:1px;min-width:190px;box-shadow:0 4px 20px rgba(255,107,53,.35);}
+.btn:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 8px 28px rgba(255,107,53,.55);}
+.btn:active{transform:scale(.97);}
+.btn.ghost{background:transparent;border:1.5px solid rgba(255,107,53,.5);
+  box-shadow:none;color:#ff9966;}
+.btn.ghost:hover{background:rgba(255,107,53,.12);box-shadow:0 0 16px rgba(255,107,53,.25);}
+.btn.sm{padding:9px 22px;font-size:14px;min-width:130px;}
+.btn.danger{background:linear-gradient(135deg,#a00,#e00);}
+
+/* ── HUD ── */
+#hud{position:fixed;top:0;left:0;right:0;display:none;justify-content:space-between;
+  align-items:flex-start;padding:14px 22px;pointer-events:none;z-index:100;}
+.hud-score{font-size:clamp(22px,4vw,40px);font-weight:900;color:#fff;
+  text-shadow:0 0 12px rgba(255,200,0,.6);}
+.hud-sub{font-size:13px;color:#8899bb;font-weight:600;letter-spacing:2px;margin-top:2px;}
+.hud-lives{display:flex;gap:7px;align-items:center;}
+.life{font-size:22px;transition:transform .2s;}
+.life.lost{filter:grayscale(1);opacity:.35;transform:scale(.8);}
+.hud-center{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.combo-badge{background:linear-gradient(135deg,#ffd700,#ff8c00);color:#3a1a00;
+  font-size:13px;font-weight:900;padding:3px 14px;border-radius:20px;
+  letter-spacing:2px;opacity:0;transition:opacity .3s;pointer-events:none;}
+.combo-badge.show{opacity:1;}
+#timerBar{width:min(280px,40vw);height:6px;background:rgba(255,255,255,.12);
+  border-radius:3px;overflow:hidden;display:none;}
+#timerFill{height:100%;width:100%;background:linear-gradient(90deg,#ff6b35,#ffd700);
+  border-radius:3px;transition:width .5s linear;}
+
+/* ── POWERUP HUD ── */
+#powerupSlots{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  display:none;gap:12px;z-index:100;pointer-events:none;}
+.pu-slot{width:52px;height:52px;border-radius:14px;border:2px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;
+  font-size:22px;position:relative;overflow:hidden;}
+.pu-slot .pu-cd{position:absolute;bottom:0;left:0;width:100%;background:rgba(0,0,0,.55);
+  font-size:10px;font-weight:700;color:#ffd700;text-align:center;padding:1px 0;}
+.pu-slot.active-pu{border-color:#ffd700;box-shadow:0 0 12px rgba(255,215,0,.5);}
+
+/* ── PROGRESS ── */
+#progressWrap{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  width:min(320px,50vw);display:none;flex-direction:column;align-items:center;gap:4px;}
+#progressLabel{color:#7a8cb0;font-size:12px;font-weight:700;letter-spacing:2px;}
+#progressBar{width:100%;height:8px;background:rgba(255,255,255,.1);border-radius:4px;overflow:hidden;}
+#progressFill{height:100%;background:linear-gradient(90deg,#ff6b35,#ffd700,#7cfc00);
+  border-radius:4px;width:0%;transition:width .4s cubic-bezier(.34,1.56,.64,1);}
+
+/* ── FLOATING TEXT ── */
+.float-text{position:fixed;pointer-events:none;font-weight:900;z-index:200;
+  animation:floatUp .9s ease-out forwards;}
+
+/* ── SCREENS content ── */
+.level-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;
+  max-width:780px;width:92%;max-height:60vh;overflow-y:auto;padding:6px 6px 16px;
+  scrollbar-width:thin;}
+.level-grid::-webkit-scrollbar{width:5px;}
+.level-grid::-webkit-scrollbar-thumb{background:rgba(255,107,53,.4);border-radius:3px;}
+.lv-card{background:rgba(255,255,255,.06);border:1px solid rgba(255,107,53,.25);
+  border-radius:18px;padding:16px 12px;cursor:pointer;pointer-events:all;
+  transition:all .2s;color:#fff;text-align:center;}
+.lv-card:hover{background:rgba(255,107,53,.18);transform:translateY(-3px);
+  border-color:rgba(255,107,53,.6);box-shadow:0 6px 20px rgba(255,107,53,.2);}
+.lv-card.locked{opacity:.4;cursor:not-allowed;}
+.lv-card .lv-n{font-size:26px;font-weight:900;color:#ff6b35;}
+.lv-card .lv-nm{font-size:13px;font-weight:700;margin:3px 0;}
+.lv-card .lv-d{font-size:11px;color:#7a8cb0;line-height:1.4;}
+.lv-card .lv-stars{font-size:14px;margin-top:4px;}
+
+.settings-row{display:flex;align-items:center;justify-content:space-between;
+  width:min(340px,88vw);margin:9px 0;color:#ccd;}
+.settings-row label{font-size:15px;}
+.toggle{width:48px;height:25px;background:#2a2a4a;border-radius:13px;cursor:pointer;
+  pointer-events:all;position:relative;transition:background .25s;border:1px solid rgba(255,255,255,.1);}
+.toggle.on{background:#ff6b35;}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:19px;height:19px;
+  background:#fff;border-radius:50%;transition:left .25s;box-shadow:0 1px 4px rgba(0,0,0,.4);}
+.toggle.on::after{left:26px;}
+
+/* ── PAUSE OVERLAY ── */
+#pauseOverlay{position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,5,.82);backdrop-filter:blur(6px);display:none;
+  flex-direction:column;align-items:center;justify-content:center;z-index:300;pointer-events:all;}
+#pauseOverlay h2{color:#fff;font-size:44px;font-weight:900;margin-bottom:8px;}
+#pauseOverlay p{color:#6677aa;font-size:14px;letter-spacing:3px;margin-bottom:32px;}
+
+/* ── MODAL ── */
+.modal-wrap{position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,10,.88);display:none;align-items:center;justify-content:center;z-index:400;pointer-events:all;}
+.modal-wrap.open{display:flex;}
+.modal{background:linear-gradient(160deg,#0e0e2e,#131330);
+  border:1.5px solid rgba(255,107,53,.4);border-radius:26px;
+  padding:36px 40px;text-align:center;color:#fff;max-width:400px;width:92%;
+  box-shadow:0 20px 60px rgba(0,0,0,.7);}
+.modal h2{font-size:clamp(22px,4vw,34px);font-weight:900;margin-bottom:6px;}
+.modal .big-score{font-size:clamp(44px,8vw,68px);font-weight:900;
+  background:linear-gradient(135deg,#ffd700,#ff8c00);-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;background-clip:text;line-height:1.1;}
+.modal .sub-info{color:#6677aa;font-size:14px;margin:6px 0 20px;}
+.modal .stats-row{display:flex;gap:16px;justify-content:center;margin:12px 0;}
+.stat-box{background:rgba(255,255,255,.06);border-radius:12px;padding:10px 18px;min-width:80px;}
+.stat-box .sv{font-size:22px;font-weight:900;color:#ffd700;}
+.stat-box .sl{font-size:11px;color:#6677aa;letter-spacing:1px;margin-top:2px;}
+.stars-row{font-size:36px;letter-spacing:4px;margin:10px 0;}
+
+/* ── LEADERBOARD ── */
+.lb-row{display:flex;align-items:center;gap:12px;padding:8px 14px;
+  border-radius:10px;margin:4px 0;background:rgba(255,255,255,.04);}
+.lb-row.you{background:rgba(255,107,53,.15);border:1px solid rgba(255,107,53,.3);}
+.lb-rank{width:24px;font-weight:900;color:#6677aa;font-size:13px;}
+.lb-rank.gold{color:#ffd700;}
+.lb-rank.silver{color:#c0c0c0;}
+.lb-rank.bronze{color:#cd7f32;}
+.lb-name{flex:1;font-size:14px;font-weight:600;}
+.lb-score{font-size:15px;font-weight:900;color:#ffd700;}
+
+/* ── POWERUP PICKUP ── */
+.pu-announce{position:fixed;top:30%;left:50%;transform:translateX(-50%);
+  background:rgba(0,0,0,.75);border:2px solid #ffd700;border-radius:16px;
+  padding:10px 24px;color:#ffd700;font-size:16px;font-weight:900;
+  z-index:250;pointer-events:none;opacity:0;transition:opacity .3s;text-align:center;}
+
+/* ── PAUSE BTN ── */
+#pauseBtn{position:fixed;top:14px;right:22px;width:40px;height:40px;
+  background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);
+  border-radius:10px;cursor:pointer;pointer-events:all;display:none;
+  align-items:center;justify-content:center;font-size:16px;color:#fff;
+  transition:background .2s;z-index:110;}
+#pauseBtn:hover{background:rgba(255,255,255,.16);}
+
+/* ── ANIMATIONS ── */
+@keyframes floatY{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+@keyframes titlePulse{0%,100%{filter:brightness(1);}50%{filter:brightness(1.15);}}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1);}
+  60%{opacity:1;transform:translateY(-50px) scale(1.1);}
+  100%{opacity:0;transform:translateY(-90px) scale(.9);}}
+@keyframes shockwave{0%{box-shadow:0 0 0 0 rgba(255,50,50,.8);}
+  100%{box-shadow:0 0 0 60px rgba(255,50,50,0);}}
+@keyframes puGlow{0%,100%{box-shadow:0 0 8px rgba(255,215,0,.4);}50%{box-shadow:0 0 20px rgba(255,215,0,.9);}}
+@keyframes levelFlash{0%{opacity:0;transform:scale(.7);}50%{opacity:1;transform:scale(1.05);}100%{opacity:0;transform:scale(1.1);}}
+
+.levelFlash{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:clamp(32px,6vw,64px);font-weight:900;color:#ffd700;pointer-events:none;
+  z-index:250;text-align:center;animation:levelFlash .9s ease-out forwards;}
+
+input[type=range]{width:130px;accent-color:#ff6b35;cursor:pointer;}
+select{background:#0e0e2e;color:#ccd;border:1px solid rgba(255,107,53,.4);
+  padding:5px 10px;border-radius:8px;font-size:14px;cursor:pointer;}
+</style>
+</head>
+<body>
+<canvas id="gc"></canvas>
+
+<!-- ══ HUD ══ -->
+<div id="hud">
+  <div>
+    <div class="hud-score">⚔️ <span id="scoreDisp">0</span></div>
+    <div class="hud-sub" id="levelDisp">LEVEL 1</div>
+  </div>
+  <div class="hud-center">
+    <div class="combo-badge" id="comboBadge">🔥 x3 COMBO</div>
+    <div id="timerBar"><div id="timerFill"></div></div>
+  </div>
+  <div class="hud-lives" id="livesDisp"></div>
+</div>
+<div id="pauseBtn" onclick="togglePause()">⏸</div>
+
+<!-- ══ POWERUP SLOTS ══ -->
+<div id="powerupSlots">
+  <div class="pu-slot" id="puSlot0"><span id="puIcon0">—</span><div class="pu-cd" id="puCd0" style="display:none"></div></div>
+  <div class="pu-slot" id="puSlot1"><span id="puIcon1">—</span><div class="pu-cd" id="puCd1" style="display:none"></div></div>
+  <div class="pu-slot" id="puSlot2"><span id="puIcon2">—</span><div class="pu-cd" id="puCd2" style="display:none"></div></div>
+</div>
+
+<!-- ══ PROGRESS ══ -->
+<div id="progressWrap">
+  <div id="progressLabel">0 / 0 FRUITS</div>
+  <div id="progressBar"><div id="progressFill"></div></div>
+</div>
+
+<!-- ══ SCREENS ══ -->
+
+<!-- HOME -->
+<div class="screen active" id="scHome">
+  <div class="screen-bg"></div>
+  <div style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;">
+    <canvas id="bgCanvas" style="width:100%;height:100%;"></canvas>
+  </div>
+  <div class="logo-fruits">🍉 🍊 🍋 🍇 🍓</div>
+  <div class="game-title">FRUIT SLASH</div>
+  <div class="tagline">Slice · Combo · Conquer</div>
+  <button class="btn" onclick="showScreen('scLevels')">🎮 Play</button>
+  <button class="btn ghost" onclick="startEndless()">⚡ Endless Mode</button>
+  <button class="btn ghost" onclick="showScreen('scLeaderboard')">🏆 Leaderboard</button>
+  <button class="btn ghost" onclick="showScreen('scSettings')">⚙️ Settings</button>
+  <div style="color:#2a3050;font-size:12px;margin-top:28px;letter-spacing:2px;">SWIPE TO SLICE • AVOID BOMBS • BUILD COMBOS</div>
+</div>
+
+<!-- LEVEL SELECT -->
+<div class="screen" id="scLevels">
+  <div class="screen-bg"></div>
+  <div style="color:#fff;font-size:clamp(20px,3.5vw,32px);font-weight:900;margin-bottom:4px;">Choose Level</div>
+  <div style="color:#4a5a7a;font-size:13px;letter-spacing:3px;margin-bottom:14px;">50 STAGES OF FRUITY MAYHEM</div>
+  <div id="levelJumpRow" style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;justify-content:center;max-width:600px;"></div>
+  <div class="level-grid" id="levelGrid"></div>
+  <button class="btn ghost sm" style="margin-top:14px;" onclick="showScreen('scHome')">← Back</button>
+</div>
+
+<!-- SETTINGS -->
+<div class="screen" id="scSettings">
+  <div class="screen-bg"></div>
+  <div style="color:#fff;font-size:28px;font-weight:900;margin-bottom:26px;">⚙️ Settings</div>
+  <div class="settings-row"><label>🔊 Sound FX</label><div class="toggle on" id="togSfx" onclick="tog('sfx')"></div></div>
+  <div class="settings-row"><label>🎵 Music</label><div class="toggle on" id="togMusic" onclick="tog('music')"></div></div>
+  <div class="settings-row"><label>💥 Particles</label><div class="toggle on" id="togPart" onclick="tog('particles')"></div></div>
+  <div class="settings-row"><label>🌈 Trail</label>
+    <select onchange="cfg.trailColor=this.value">
+      <option value="#ffffff">White</option>
+      <option value="#ff6b35">Orange</option>
+      <option value="#00ff88">Neon</option>
+      <option value="#a78bfa">Violet</option>
+      <option value="#ffd700">Gold</option>
+    </select>
+  </div>
+  <div class="settings-row"><label>🎚️ Volume</label>
+    <input type="range" min="0" max="100" value="70" oninput="cfg.volume=this.value/100">
+  </div>
+  <div class="settings-row"><label>🗑️ Reset Scores</label>
+    <button onclick="resetScores()" style="background:#1a0a0a;color:#f66;border:1px solid #622;padding:5px 14px;border-radius:8px;font-size:13px;cursor:pointer;pointer-events:all;">Reset</button>
+  </div>
+  <button class="btn ghost sm" style="margin-top:22px;" onclick="showScreen('scHome')">← Back</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="screen" id="scLeaderboard">
+  <div class="screen-bg"></div>
+  <div style="color:#fff;font-size:28px;font-weight:900;margin-bottom:6px;">🏆 Leaderboard</div>
+  <div style="color:#4a5a7a;font-size:12px;letter-spacing:3px;margin-bottom:20px;">ENDLESS MODE</div>
+  <div id="lbList" style="width:min(360px,90vw);max-height:55vh;overflow-y:auto;"></div>
+  <button class="btn ghost sm" style="margin-top:22px;" onclick="showScreen('scHome')">← Back</button>
+</div>
+
+<!-- ENDLESS SPLASH -->
+<div class="screen" id="scEndless">
+  <div class="screen-bg"></div>
+  <div style="font-size:52px;margin-bottom:6px;">⚡</div>
+  <div style="color:#fff;font-size:30px;font-weight:900;margin-bottom:6px;">Endless Mode</div>
+  <div style="color:#4a5a7a;font-size:13px;letter-spacing:3px;margin-bottom:26px;">HOW LONG CAN YOU LAST?</div>
+  <div style="background:rgba(255,107,53,.1);border:1px solid rgba(255,107,53,.35);border-radius:16px;
+    padding:18px 36px;margin-bottom:24px;text-align:center;">
+    <div style="color:#4a5a7a;font-size:12px;letter-spacing:2px;margin-bottom:6px;">BEST SCORE</div>
+    <div id="bestScoreDisp" style="font-size:48px;font-weight:900;color:#ffd700;">0</div>
+  </div>
+  <button class="btn" onclick="startEndlessGame()">🚀 Start</button>
+  <button class="btn ghost sm" style="margin-top:8px;" onclick="showScreen('scHome')">← Back</button>
+</div>
+
+<!-- ══ PAUSE OVERLAY ══ -->
+<div id="pauseOverlay">
+  <h2>⏸ Paused</h2>
+  <p>GAME IS PAUSED</p>
+  <button class="btn" onclick="togglePause()">▶ Resume</button>
+  <button class="btn ghost" onclick="restartCurrent()">🔄 Restart</button>
+  <button class="btn ghost" onclick="quitToMenu()">🏠 Quit</button>
+</div>
+
+<!-- ══ RESULT MODAL ══ -->
+<div class="modal-wrap" id="resultModal">
+  <div class="modal">
+    <div class="stars-row" id="resStars">⭐⭐⭐</div>
+    <h2 id="resTitle">Level Complete!</h2>
+    <div class="big-score" id="resScore">0</div>
+    <div class="sub-info" id="resMsg">Amazing!</div>
+    <div class="stats-row">
+      <div class="stat-box"><div class="sv" id="statCombo">0</div><div class="sl">BEST COMBO</div></div>
+      <div class="stat-box"><div class="sv" id="statMissed">0</div><div class="sl">MISSED</div></div>
+      <div class="stat-box"><div class="sv" id="statTime">0s</div><div class="sl">TIME</div></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn sm" onclick="nextOrMenu(true)" id="nextLvBtn">Next →</button>
+      <button class="btn ghost sm" onclick="restartCurrent()">Retry</button>
+      <button class="btn ghost sm" onclick="nextOrMenu(false)">Menu</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ POWERUP ANNOUNCE ══ -->
+<div class="pu-announce" id="puAnnounce"></div>
+
+<script>
+// ══════════════════════════════════════
+//  CONFIG & STATE
+// ══════════════════════════════════════
+const canvas = document.getElementById('gc');
+const ctx = canvas.getContext('2d');
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx = bgCanvas.getContext('2d');
+
+let W, H;
+function resize() {
+  const rect = document.body.getBoundingClientRect();
+  const w = Math.max(rect.width,  window.innerWidth  || 0, document.documentElement.clientWidth  || 0);
+  const h = Math.max(rect.height, window.innerHeight || 0, document.documentElement.clientHeight || 0);
+  W = canvas.width = w;
+  H = canvas.height = h;
+  bgCanvas.width = w;
+  bgCanvas.height = h;
+}
+resize();
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', resize);
+if (window.ResizeObserver) {
+  new ResizeObserver(resize).observe(document.body);
+}
+// Re-check size shortly after load in case the iframe settles late
+setTimeout(resize, 50);
+setTimeout(resize, 300);
+setTimeout(resize, 1000);
+
+const cfg = {
+  sfx: true, music: true, particles: true,
+  volume: 0.7, trailColor: '#ffffff'
+};
+
+// SAVE wrapper: per-device persistent storage via localStorage,
+// with an in-memory fallback so the game still works in a single
+// session even if storage is blocked (e.g. strict kid-mode browsers,
+// some locked-down WebViews, or private/incognito contexts).
+const _memCache = {};
+const SAVE = {
+  get: k => {
+    try {
+      const v = localStorage.getItem('fs_' + k);
+      return v !== null ? JSON.parse(v) : (_memCache[k] !== undefined ? _memCache[k] : null);
+    } catch {
+      return _memCache[k] !== undefined ? _memCache[k] : null;
+    }
+  },
+  set: (k, v) => {
+    _memCache[k] = v;
+    try { localStorage.setItem('fs_' + k, JSON.stringify(v)); } catch {}
+  },
+  remove: k => {
+    delete _memCache[k];
+    try { localStorage.removeItem('fs_' + k); } catch {}
+  }
+};
+
+// ══════════════════════════════════════
+//  LIFETIME STATS (persist across ALL sessions/games)
+//  Powers the long-tail achievement list below.
+// ══════════════════════════════════════
+function getLifetime() {
+  return SAVE.get('lifetime') || {
+    totalSliced: 0, totalBombsHit: 0, totalMissed: 0, gamesPlayed: 0,
+    levelsPlayed: 0, endlessPlayed: 0, totalScore: 0, bestComboEver: 0,
+    fruitCounts: {}, powerupsUsed: 0, perfectLevels: 0, totalPlaytime: 0,
+    nightPlays: 0, fastestLevelClear: null, levelsCleared3Star: 0,
+  };
+}
+function saveLifetime(lt) { SAVE.set('lifetime', lt); }
+function bumpLifetime(patch) {
+  const lt = getLifetime();
+  Object.keys(patch).forEach(k => {
+    if (k === 'fruitCounts') {
+      Object.keys(patch.fruitCounts).forEach(fn => {
+        lt.fruitCounts[fn] = (lt.fruitCounts[fn] || 0) + patch.fruitCounts[fn];
+      });
+    } else if (typeof patch[k] === 'number') {
+      lt[k] = (lt[k] || 0) + patch[k];
+    } else {
+      lt[k] = patch[k];
+    }
+  });
+  saveLifetime(lt);
+  return lt;
+}
+
+// ══════════════════════════════════════
+//  FRUITS & POWERUPS
+// ══════════════════════════════════════
+const FRUITS = [
+  { name:'watermelon', e:'🍉', color:'#e63946', inner:'#2dc653', sz:48, pts:10 },
+  { name:'orange',     e:'🍊', color:'#f4a261', inner:'#ffd166', sz:38, pts:8  },
+  { name:'lemon',      e:'🍋', color:'#ffd166', inner:'#fff',    sz:34, pts:6  },
+  { name:'grape',      e:'🍇', color:'#7b2d8b', inner:'#e040fb', sz:32, pts:12 },
+  { name:'strawberry', e:'🍓', color:'#e63946', inner:'#ff8fab', sz:30, pts:14 },
+  { name:'pineapple',  e:'🍍', color:'#f4a261', inner:'#ffd166', sz:42, pts:16 },
+  { name:'apple',      e:'🍎', color:'#d62828', inner:'#ffb3c1', sz:36, pts:10 },
+  { name:'peach',      e:'🍑', color:'#ffb347', inner:'#ffc8a2', sz:36, pts:11 },
+  { name:'kiwi',       e:'🥝', color:'#4caf50', inner:'#c5e1a5', sz:30, pts:15 },
+  { name:'mango',      e:'🥭', color:'#ff9f1c', inner:'#ffbf69', sz:42, pts:18 },
+  { name:'cherry',     e:'🍒', color:'#c00',    inner:'#ff6666', sz:28, pts:20 },
+  { name:'blueberry',  e:'🫐', color:'#3a3f8f', inner:'#7a7fff', sz:28, pts:18 },
+];
+
+const POWERUPS = [
+  { id:'freeze',   e:'❄️',  label:'Freeze',    color:'#4dd',  dur:5,   desc:'Slows all fruits' },
+  { id:'frenzy',   e:'🌀',  label:'Frenzy',    color:'#fa0',  dur:6,   desc:'2× score' },
+  { id:'magnet',   e:'🧲',  label:'Magnet',    color:'#f5a',  dur:5,   desc:'Auto-pulls fruits' },
+  { id:'shield',   e:'🛡️',  label:'Shield',    color:'#8fa',  dur:0,   desc:'+1 Life' },
+  { id:'bomb',     e:'💥',  label:'Bomb Clear', color:'#f84',  dur:0,   desc:'Clears all fruits' },
+];
+
+const LEVELS = [
+  { name:'Garden', emoji:'🌱', target:4, speed:0.5, bombs:0.0, rate:2300, time:40, desc:'Easy warm-up' },
+  { name:'Orchard', emoji:'🌳', target:5, speed:0.53, bombs:0.0, rate:2268, time:41, desc:'Getting comfy' },
+  { name:'Meadow', emoji:'🌼', target:6, speed:0.57, bombs:0.01, rate:2236, time:42, desc:'Light breeze' },
+  { name:'Jungle', emoji:'🏕️', target:8, speed:0.6, bombs:0.02, rate:2204, time:44, desc:'First bombs!' },
+  { name:'Canyon', emoji:'🏜️', target:9, speed:0.64, bombs:0.04, rate:2172, time:45, desc:'Heating up' },
+  { name:'Volcano', emoji:'🌋', target:10, speed:0.67, bombs:0.05, rate:2140, time:46, desc:'Molten madness' },
+  { name:'Glacier', emoji:'🧊', target:11, speed:0.7, bombs:0.06, rate:2108, time:47, desc:'Chilly chaos' },
+  { name:'Desert', emoji:'🐫', target:12, speed:0.74, bombs:0.07, rate:2076, time:48, desc:'Sandstorm slicing' },
+  { name:'Swamp', emoji:'🐸', target:14, speed:0.77, bombs:0.08, rate:2044, time:50, desc:'Sticky situation' },
+  { name:'Storm', emoji:'⚡', target:15, speed:0.81, bombs:0.1, rate:2012, time:51, desc:'Lightning fast' },
+  { name:'Reef', emoji:'🐠', target:16, speed:0.84, bombs:0.11, rate:1980, time:52, desc:'Underwater rush' },
+  { name:'Cave', emoji:'🦇', target:17, speed:0.87, bombs:0.12, rate:1948, time:53, desc:'Echoes & bombs' },
+  { name:'Cliffside', emoji:'⛰️', target:18, speed:0.91, bombs:0.13, rate:1916, time:54, desc:'Steep stakes' },
+  { name:'Tundra', emoji:'🦌', target:20, speed:0.94, bombs:0.14, rate:1884, time:56, desc:'Frozen frenzy' },
+  { name:'Highlands', emoji:'🦓', target:21, speed:0.98, bombs:0.16, rate:1852, time:57, desc:'Wild winds' },
+  { name:'Savanna', emoji:'🦁', target:22, speed:1.01, bombs:0.17, rate:1820, time:58, desc:'Predator pace' },
+  { name:'Marsh', emoji:'🐊', target:23, speed:1.04, bombs:0.18, rate:1788, time:59, desc:'Murky mayhem' },
+  { name:'Crater', emoji:'🌑', target:24, speed:1.08, bombs:0.19, rate:1756, time:60, desc:'Scorched earth' },
+  { name:'Oasis', emoji:'🏝️', target:26, speed:1.11, bombs:0.2, rate:1724, time:62, desc:'Mirage of fruit' },
+  { name:'Inferno', emoji:'🔥', target:27, speed:1.15, bombs:0.22, rate:1692, time:63, desc:'Burning trial' },
+  { name:'Abyss', emoji:'🌌', target:28, speed:1.18, bombs:0.23, rate:1660, time:64, desc:'Deep darkness' },
+  { name:'Nebula', emoji:'🌠', target:29, speed:1.21, bombs:0.24, rate:1628, time:65, desc:'Starlit slicing' },
+  { name:'Comet', emoji:'☄️', target:30, speed:1.25, bombs:0.25, rate:1596, time:66, desc:'Streaking speed' },
+  { name:'Eclipse', emoji:'🌒', target:32, speed:1.28, bombs:0.26, rate:1564, time:68, desc:'Shadow strike' },
+  { name:'Aurora', emoji:'🌈', target:33, speed:1.32, bombs:0.28, rate:1532, time:69, desc:'Radiant rush' },
+  { name:'Vortex', emoji:'🌀', target:34, speed:1.35, bombs:0.29, rate:1500, time:70, desc:'Spinning storm' },
+  { name:'Maelstrom', emoji:'🌪️', target:35, speed:1.38, bombs:0.3, rate:1468, time:71, desc:'Swirling chaos' },
+  { name:'Tempest', emoji:'🌊', target:36, speed:1.42, bombs:0.31, rate:1436, time:72, desc:'Crashing waves' },
+  { name:'Cyclone', emoji:'💨', target:38, speed:1.45, bombs:0.32, rate:1404, time:74, desc:'Gale-force fury' },
+  { name:'Apex', emoji:'🏔️', target:39, speed:1.49, bombs:0.34, rate:1372, time:75, desc:'Peak performance' },
+  { name:'Zenith', emoji:'🌟', target:40, speed:1.52, bombs:0.35, rate:1340, time:76, desc:'Top of your game' },
+  { name:'Singularity', emoji:'🕳️', target:41, speed:1.55, bombs:0.36, rate:1308, time:77, desc:'Point of no return' },
+  { name:'Nova', emoji:'💫', target:42, speed:1.59, bombs:0.37, rate:1276, time:78, desc:'Stellar speed' },
+  { name:'Pulsar', emoji:'✨', target:44, speed:1.62, bombs:0.38, rate:1244, time:80, desc:'Rapid pulses' },
+  { name:'Quasar', emoji:'🔮', target:45, speed:1.66, bombs:0.4, rate:1212, time:81, desc:'Cosmic chaos' },
+  { name:'Wormhole', emoji:'🌗', target:46, speed:1.69, bombs:0.41, rate:1180, time:82, desc:'Twisted time' },
+  { name:'Horizon', emoji:'🌑', target:47, speed:1.72, bombs:0.42, rate:1148, time:83, desc:'No turning back' },
+  { name:'Dimension X', emoji:'👽', target:48, speed:1.76, bombs:0.42, rate:1116, time:84, desc:'Alien anomaly' },
+  { name:'Chaos Realm', emoji:'💀', target:50, speed:1.79, bombs:0.42, rate:1084, time:86, desc:'Total chaos' },
+  { name:'Void', emoji:'⚫', target:51, speed:1.83, bombs:0.42, rate:1052, time:87, desc:'Endless dark' },
+  { name:'Phantom', emoji:'👻', target:52, speed:1.86, bombs:0.42, rate:1020, time:88, desc:'Haunted hands' },
+  { name:'Specter', emoji:'🎭', target:53, speed:1.89, bombs:0.42, rate:988, time:89, desc:'Ghostly grip' },
+  { name:'Wraith', emoji:'😱', target:54, speed:1.93, bombs:0.42, rate:956, time:90, desc:'Wraith-fast reflexes' },
+  { name:'Nightmare', emoji:'😨', target:56, speed:1.96, bombs:0.42, rate:924, time:92, desc:'Terror tempo' },
+  { name:'Cataclysm', emoji:'💢', target:57, speed:2.0, bombs:0.42, rate:892, time:93, desc:'Catastrophic combo' },
+  { name:'Reckoning', emoji:'⏳', target:58, speed:2.03, bombs:0.42, rate:860, time:94, desc:'Final countdown' },
+  { name:'Ragnarok', emoji:'⚔️', target:59, speed:2.06, bombs:0.42, rate:828, time:95, desc:'Mythic mayhem' },
+  { name:'Oblivion', emoji:'🌪️', target:60, speed:2.1, bombs:0.42, rate:796, time:95, desc:'The abyss calls' },
+  { name:'Genesis', emoji:'🌅', target:62, speed:2.13, bombs:0.42, rate:764, time:95, desc:'New beginning' },
+  { name:'Omega', emoji:'♾️', target:63, speed:2.17, bombs:0.42, rate:732, time:95, desc:'Beyond infinity' },
+
+  { name:'Phoenix Rise', emoji:'🔥', target:64, speed:2.2, bombs:0.42, rate:1200, time:95, desc:'Rise from ashes' },
+  { name:'Crystal Cave', emoji:'💎', target:66, speed:2.2, bombs:0.42, rate:1178, time:96, desc:'Shimmering shards' },
+  { name:'Lava Tubes', emoji:'🌋', target:68, speed:2.2, bombs:0.42, rate:1156, time:97, desc:'Underground fire' },
+  { name:'Frostbite', emoji:'🥶', target:70, speed:2.2, bombs:0.42, rate:1134, time:98, desc:'Bitter cold' },
+  { name:'Sandsea', emoji:'🏜️', target:72, speed:2.2, bombs:0.42, rate:1112, time:99, desc:'Endless dunes' },
+  { name:'Mirage Falls', emoji:'💦', target:74, speed:2.2, bombs:0.42, rate:1090, time:100, desc:'Watery illusion' },
+  { name:'Thornwood', emoji:'🌲', target:76, speed:2.2, bombs:0.42, rate:1068, time:101, desc:'Tangled thicket' },
+  { name:'Riverbend', emoji:'🏞️', target:78, speed:2.2, bombs:0.42, rate:1046, time:102, desc:'Winding waters' },
+  { name:'Skyfall', emoji:'☁️', target:80, speed:2.2, bombs:0.42, rate:1024, time:103, desc:'Plunging clouds' },
+  { name:'Stormcoast', emoji:'🌊', target:82, speed:2.2, bombs:0.42, rate:1002, time:104, desc:'Wild coast' },
+  { name:'Driftwood', emoji:'🪵', target:84, speed:2.2, bombs:0.42, rate:980, time:105, desc:'Floating debris' },
+  { name:'Coral Throne', emoji:'🐚', target:86, speed:2.2, bombs:0.42, rate:958, time:106, desc:'Coral majesty' },
+  { name:'Sunken City', emoji:'🏛️', target:88, speed:2.2, bombs:0.42, rate:936, time:107, desc:'Lost below the waves' },
+  { name:'Lighthouse', emoji:'🗼', target:90, speed:2.2, bombs:0.42, rate:914, time:108, desc:'Beacon of light' },
+  { name:'Tidepool', emoji:'🏖️', target:92, speed:2.2, bombs:0.42, rate:892, time:109, desc:'Shallow wonders' },
+  { name:'Saltmarsh', emoji:'🌾', target:94, speed:2.2, bombs:0.42, rate:870, time:110, desc:'Salty grasslands' },
+  { name:'Windmill Hill', emoji:'🌬️', target:96, speed:2.2, bombs:0.42, rate:848, time:111, desc:'Turning blades' },
+  { name:'Harvest Moon', emoji:'🌕', target:98, speed:2.2, bombs:0.42, rate:826, time:112, desc:'Harvest glow' },
+  { name:'Pumpkin Patch', emoji:'🎃', target:100, speed:2.2, bombs:0.42, rate:804, time:113, desc:'Spooky season' },
+  { name:'Cider Press', emoji:'🍎', target:102, speed:2.2, bombs:0.42, rate:782, time:114, desc:'Sweet pressing' },
+  { name:'Frosted Pines', emoji:'🌲', target:104, speed:2.2, bombs:0.42, rate:760, time:115, desc:'Snowy pines' },
+  { name:'Snowdrift', emoji:'❄️', target:105, speed:2.2, bombs:0.42, rate:738, time:116, desc:'Deep snow' },
+  { name:'Icebreaker', emoji:'🧊', target:106, speed:2.2, bombs:0.42, rate:716, time:117, desc:'Crackling ice' },
+  { name:'Glacial Rift', emoji:'🧊', target:107, speed:2.2, bombs:0.42, rate:694, time:118, desc:'Frozen chasm' },
+  { name:'Polar Vortex', emoji:'🌀', target:108, speed:2.2, bombs:0.42, rate:672, time:119, desc:'Spinning polar winds' },
+  { name:'Borealis', emoji:'✨', target:109, speed:2.2, bombs:0.42, rate:650, time:120, desc:'Glowing skies' },
+  { name:'Midnight Sun', emoji:'🌞', target:110, speed:2.2, bombs:0.42, rate:628, time:121, desc:'Sun never sets' },
+  { name:'Permafrost', emoji:'🥶', target:111, speed:2.2, bombs:0.42, rate:606, time:122, desc:'Frozen ground' },
+  { name:'Crevasse', emoji:'⛰️', target:112, speed:2.2, bombs:0.42, rate:584, time:123, desc:'Deep crack' },
+  { name:'Avalanche', emoji:'🏔️', target:113, speed:2.2, bombs:0.42, rate:562, time:124, desc:'Snow slide' },
+  { name:'Dust Bowl', emoji:'🏜️', target:114, speed:2.2, bombs:0.42, rate:560, time:125, desc:'Dry as bone' },
+  { name:'Mesa Verde', emoji:'🪨', target:115, speed:2.2, bombs:0.42, rate:560, time:126, desc:'Layered cliffs' },
+  { name:'Red Rock', emoji:'🟥', target:116, speed:2.2, bombs:0.42, rate:560, time:127, desc:'Crimson stone' },
+  { name:'Canyon Echo', emoji:'🏞️', target:117, speed:2.2, bombs:0.42, rate:560, time:128, desc:'Echoing canyon' },
+  { name:'Sunbaked', emoji:'☀️', target:118, speed:2.2, bombs:0.42, rate:560, time:129, desc:'Blazing heat' },
+  { name:'Heat Mirage', emoji:'🌡️', target:119, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Shimmering air' },
+  { name:'Scorpion Flat', emoji:'🦂', target:120, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Desert sting' },
+  { name:'Cactus Row', emoji:'🌵', target:121, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Spiky guardians' },
+  { name:'Oasis Mirage', emoji:'🏝️', target:122, speed:2.2, bombs:0.42, rate:560, time:130, desc:'False water' },
+  { name:'Dune Sea', emoji:'🏜️', target:123, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Endless sand' },
+  { name:'Bamboo Grove', emoji:'🎋', target:124, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Swaying stalks' },
+  { name:'Lotus Pond', emoji:'🪷', target:125, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Still waters' },
+  { name:'Paper Lanterns', emoji:'🏮', target:126, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Glowing night' },
+  { name:'Cherry Blossom', emoji:'🌸', target:127, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Pink petals fall' },
+  { name:'Koi Garden', emoji:'🐟', target:128, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Golden fish ponds' },
+  { name:'Zen Stones', emoji:'🪨', target:129, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Balanced calm' },
+  { name:'Temple Bells', emoji:'🔔', target:130, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Ringing peace' },
+  { name:'Silk Road', emoji:'🐫', target:131, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Ancient trade route' },
+  { name:'Jade Forest', emoji:'🌿', target:132, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Emerald canopy' },
+  { name:'Dragon Gate', emoji:'🐉', target:133, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Guarded entrance' },
+  { name:'Carnival Lights', emoji:'🎪', target:134, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Bright and loud' },
+  { name:'Ferris Wheel', emoji:'🎡', target:135, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Spinning high' },
+  { name:'Cotton Candy', emoji:'🍭', target:136, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Sugary sweetness' },
+  { name:'Funhouse', emoji:'🎠', target:137, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Mirror maze madness' },
+  { name:'Bumper Cars', emoji:'🎢', target:138, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Spinning seats' },
+  { name:'Tilt-a-Whirl', emoji:'🎢', target:139, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Dizzying spins' },
+  { name:'Midway', emoji:'🎟️', target:140, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Games and prizes' },
+  { name:'Sideshow', emoji:'🎭', target:141, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Strange performers' },
+  { name:'Big Top', emoji:'🎪', target:142, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Center ring' },
+  { name:'Confetti Storm', emoji:'🎊', target:143, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Paper rain' },
+  { name:'Neon District', emoji:'💡', target:144, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Glowing signs' },
+  { name:'Arcade Row', emoji:'🕹️', target:145, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Coin-op chaos' },
+  { name:'Pixel Plaza', emoji:'🟪', target:145, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Digital plaza' },
+  { name:'Synth Wave', emoji:'🎹', target:146, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Retro beats' },
+  { name:'Retro Grid', emoji:'📺', target:146, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Glowing lines' },
+  { name:'Laser Tag', emoji:'🔫', target:147, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Beam battles' },
+  { name:'Holo Street', emoji:'🟦', target:148, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Floating ads' },
+  { name:'Cyber Alley', emoji:'🌃', target:148, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Shadowed streets' },
+  { name:'Chrome City', emoji:'🏙️', target:149, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Polished steel' },
+  { name:'Mainframe', emoji:'💻', target:149, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Core systems' },
+  { name:'Asteroid Belt', emoji:'☄️', target:150, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Floating rocks' },
+  { name:'Lunar Base', emoji:'🌙', target:151, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Grey dust plains' },
+  { name:'Mars Outpost', emoji:'👽', target:151, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Red dust colony' },
+  { name:'Saturn Rings', emoji:'🪐', target:152, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Icy rings' },
+  { name:'Jupiter Storm', emoji:'⚡', target:152, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Swirling gas' },
+  { name:'Solar Flare', emoji:'☀️', target:153, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Solar storm' },
+  { name:'Deep Space', emoji:'🌌', target:154, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Endless dark' },
+  { name:'Galaxy Edge', emoji:'✨', target:154, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Edge of everything' },
+  { name:'Black Hole', emoji:'⚫', target:155, speed:2.2, bombs:0.42, rate:560, time:130, desc:'No escape' },
+  { name:'Big Bang', emoji:'💥', target:155, speed:2.2, bombs:0.42, rate:560, time:130, desc:'The first moment' },
+  { name:'Coral Reef', emoji:'🐠', target:156, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Colorful coral' },
+  { name:'Kelp Forest', emoji:'🌿', target:157, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Swaying greenery' },
+  { name:'Shipwreck', emoji:'⚓', target:157, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Broken hull' },
+  { name:'Mermaid Cove', emoji:'🧜', target:158, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Hidden grotto' },
+  { name:'Trench', emoji:'🌑', target:158, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Crushing depths' },
+  { name:'Bioluminescence', emoji:'✨', target:159, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Glowing creatures' },
+  { name:'Whale Song', emoji:'🐋', target:160, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Deep calls' },
+  { name:'Riptide', emoji:'🌊', target:160, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Pulling tide' },
+  { name:'Tsunami', emoji:'🌊', target:161, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Wall of water' },
+  { name:'Ocean Floor', emoji:'🌑', target:161, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Pressure zone' },
+  { name:'Thunderhead', emoji:'⛈️', target:162, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Rumbling skies' },
+  { name:'Lightning Field', emoji:'⚡', target:163, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Crackling air' },
+  { name:'Hailstorm', emoji:'🌨️', target:163, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Icy pellets' },
+  { name:'Tornado Alley', emoji:'🌪️', target:164, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Spinning funnel' },
+  { name:'Hurricane Eye', emoji:'🌀', target:164, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Calm center, wild edges' },
+  { name:'Squall Line', emoji:'🌧️', target:165, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Marching rain' },
+  { name:'Downburst', emoji:'🌩️', target:166, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Bright flashes' },
+  { name:'Static Charge', emoji:'⚡', target:166, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Charged air' },
+  { name:'Rolling Thunder', emoji:'⛈️', target:167, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Endless rumble' },
+  { name:'Eye of the Storm', emoji:'🌀', target:167, speed:2.2, bombs:0.42, rate:560, time:130, desc:'Center of chaos' },
+];
+
+// ══════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════
+let state = 'home';
+let paused = false;
+let objects = [], particles = [], trail = [], floatTexts = [];
+let score = 0, lives = 3, combo = 0, comboTimer = 0;
+let bestCombo = 0, missed = 0, sliced = 0, bombsHit = 0;
+let currentLevel = 0, isEndless = false, endless_diff = 0;
+let spawnT = 0, spawnInterval = 1500, speedMult = 1;
+let lastTs = 0, dt = 0;
+let activePU = {};   // { id: timeRemaining }
+let puQueue = [];    // collected powerups in HUD slots
+let levelTime = 0, maxTime = 60;
+let startTime = 0;
+let mouse = { x:0, y:0, px:0, py:0, down:false };
+let audioCtx;
+
+// ══════════════════════════════════════
+//  AUDIO
+// ══════════════════════════════════════
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+function beep(freq, type='sine', dur=.18, vol=.3) {
+  if (!cfg.sfx || !audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.connect(g); g.connect(audioCtx.destination);
+  o.frequency.value = freq + Math.random()*30; o.type = type;
+  g.gain.setValueAtTime(cfg.volume * vol, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(.001, audioCtx.currentTime + dur);
+  o.start(); o.stop(audioCtx.currentTime + dur);
+}
+const FRUIT_FREQ = { watermelon:280,orange:360,lemon:480,grape:220,strawberry:520,
+  pineapple:350,apple:420,peach:390,kiwi:470,mango:320,cherry:580,blueberry:240 };
+
+function sfxSlice(name) { beep(FRUIT_FREQ[name]||400,'sine',.18,.3); }
+function sfxBomb()       { beep(80,'sawtooth',.45,.5); beep(55,'square',.35,.3); }
+function sfxMiss()       { beep(160,'square',.22,.2); }
+function sfxCombo(c)     { beep(500+c*90,'triangle',.28,.35); }
+function sfxPowerup()    { beep(700,'sine',.1,.2); setTimeout(()=>beep(900,'sine',.15,.25),80); }
+function sfxFreeze()     { beep(300,'sine',.4,.2); beep(250,'sine',.5,.15); }
+function sfxFrenzy()     { for(let i=0;i<3;i++) setTimeout(()=>beep(400+i*150,'triangle',.12,.2),i*70); }
+function sfxLvlComplete(){ for(let i=0;i<5;i++) setTimeout(()=>beep(440+i*80,'sine',.2,.25),i*90); }
+function sfxGameOver()   { beep(200,'sawtooth',.6,.4); setTimeout(()=>beep(150,'square',.8,.4),200); }
+
+// ══════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  state = 'menu';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('pauseBtn').style.display = 'none';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('powerupSlots').style.display = 'none';
+  document.getElementById('timerBar').style.display = 'none';
+  objects = []; particles = []; trail = []; floatTexts = [];
+  paused = false;
+  document.getElementById('pauseOverlay').style.display = 'none';
+  if (id === 'scLeaderboard') renderLeaderboard();
+  if (id === 'scEndless') {
+    const b = SAVE.get('bestScore') || 0;
+    document.getElementById('bestScoreDisp').textContent = b;
+  }
+}
+
+function tog(key) {
+  cfg[key] = !cfg[key];
+  const map = { sfx:'togSfx', music:'togMusic', particles:'togPart' };
+  const el = document.getElementById(map[key]);
+  if (el) { if(cfg[key]) el.classList.add('on'); else el.classList.remove('on'); }
+}
+function resetScores() {
+  const keys = ['bestScore','leaderboard','levelStars','achievements','dailyDone','hintSeen'];
+  keys.forEach(k => SAVE.remove(k));
+  refreshHomeChip();
+  buildLevelGrid();
+  alert('All progress reset! Starting fresh.');
+}
+
+function updateHUD() {
+  document.getElementById('scoreDisp').textContent = score;
+  const lv = document.getElementById('livesDisp');
+  lv.innerHTML = '';
+  for (let i=0;i<3;i++) {
+    const s = document.createElement('span');
+    s.className = 'life' + (i >= lives ? ' lost' : '');
+    s.textContent = '❤️'; lv.appendChild(s);
+  }
+}
+
+function showCombo(c) {
+  const b = document.getElementById('comboBadge');
+  b.textContent = `🔥 ×${c} COMBO`;
+  b.classList.add('show');
+  clearTimeout(b._t);
+  b._t = setTimeout(() => b.classList.remove('show'), 1100);
+}
+
+function spawnFloatText(x, y, text, color='#ffd700', size=22) {
+  floatTexts.push({ x, y, text, color, size, life:1, maxLife:1 });
+}
+
+function showLevelFlash(text) {
+  const d = document.createElement('div');
+  d.className = 'levelFlash'; d.textContent = text;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 900);
+}
+
+function announcePickup(pu) {
+  const el = document.getElementById('puAnnounce');
+  el.textContent = `${pu.e} ${pu.label} — ${pu.desc}!`;
+  el.style.opacity = 1;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.style.opacity = 0, 2000);
+}
+
+// ══════════════════════════════════════
+//  LEVEL SELECT BUILD
+// ══════════════════════════════════════
+function buildLevelGrid() {
+  const grid = document.getElementById('levelGrid');
+  grid.innerHTML = '';
+  const stars = SAVE.get('levelStars') || {};
+  LEVELS.forEach((lv, i) => {
+    const unlocked = i === 0 || (stars[i-1] !== undefined);
+    const s = stars[i] || 0;
+    const div = document.createElement('div');
+    div.className = 'lv-card' + (unlocked ? '' : ' locked');
+    div.id = 'lvCard' + i;
+    div.innerHTML = `
+      <div class="lv-n">${i+1}</div>
+      <div style="font-size:20px;">${unlocked ? lv.emoji : '🔒'}</div>
+      <div class="lv-nm">${lv.name}</div>
+      <div class="lv-d">${lv.target} fruits · ${lv.time}s</div>
+      <div class="lv-stars">${'⭐'.repeat(s)}${'☆'.repeat(3-s)}</div>`;
+    if (unlocked) div.onclick = () => startLevel(i);
+    grid.appendChild(div);
+  });
+  buildLevelJumpRow();
+}
+
+function buildLevelJumpRow() {
+  const row = document.getElementById('levelJumpRow');
+  if (!row) return;
+  row.innerHTML = '';
+  for (let start = 0; start < LEVELS.length; start += 10) {
+    const end = Math.min(start + 9, LEVELS.length - 1);
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost sm';
+    btn.style.minWidth = '70px';
+    btn.style.padding = '6px 14px';
+    btn.style.fontSize = '12px';
+    btn.style.pointerEvents = 'all';
+    btn.textContent = `${start+1}–${end+1}`;
+    btn.onclick = () => {
+      const target = document.getElementById('lvCard' + start);
+      if (target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+    };
+    row.appendChild(btn);
+  }
+}
+
+// ══════════════════════════════════════
+//  GAME START
+// ══════════════════════════════════════
+function startLevel(idx) {
+  initAudio();
+  currentLevel = idx;
+  isEndless = false;
+  const lv = LEVELS[idx];
+  score = 0; lives = 3; combo = 0; sliced = 0; missed = 0;
+  bestCombo = 0; bombsHit = 0;
+  spawnInterval = lv.rate; speedMult = lv.speed;
+  objects = []; particles = []; trail = []; floatTexts = [];
+  spawnT = 0; activePU = {}; puQueue = [];
+  levelTime = lv.time; maxTime = lv.time; startTime = performance.now();
+  endless_diff = 0;
+
+  const hr = new Date().getHours();
+  bumpLifetime({ gamesPlayed: 1, levelsPlayed: 1, nightPlays: (hr >= 22 || hr < 5) ? 1 : 0 });
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('pauseBtn').style.display = 'flex';
+  document.getElementById('progressWrap').style.display = 'flex';
+  document.getElementById('powerupSlots').style.display = 'flex';
+  document.getElementById('timerBar').style.display = 'block';
+  updateHUD();
+  updateProgress();
+  updatePUSlots();
+
+  document.getElementById('levelDisp').textContent = `LEVEL ${idx+1} — ${lv.name.toUpperCase()}`;
+  document.getElementById('resultModal').classList.remove('open');
+  paused = false;
+  state = 'playing';
+  lastTs = performance.now();
+  showLevelFlash(`LEVEL ${idx+1}\n${lv.emoji} ${lv.name}`);
+}
+
+function startEndless() { showScreen('scEndless'); }
+function startEndlessGame() {
+  initAudio();
+  isEndless = true;
+  currentLevel = 0;
+  score = 0; lives = 3; combo = 0; sliced = 0; missed = 0;
+  bestCombo = 0; bombsHit = 0; endless_diff = 0;
+  spawnInterval = 1800; speedMult = 0.5;
+  objects = []; particles = []; trail = []; floatTexts = [];
+  spawnT = 0; activePU = {}; puQueue = [];
+  startTime = performance.now();
+
+  const hr2 = new Date().getHours();
+  bumpLifetime({ gamesPlayed: 1, endlessPlayed: 1, nightPlays: (hr2 >= 22 || hr2 < 5) ? 1 : 0 });
+
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('pauseBtn').style.display = 'flex';
+  document.getElementById('powerupSlots').style.display = 'flex';
+  document.getElementById('timerBar').style.display = 'none';
+  updateHUD();
+  updatePUSlots();
+
+  document.getElementById('levelDisp').textContent = '⚡ ENDLESS';
+  document.getElementById('progressWrap').style.display = 'none';
+  document.getElementById('resultModal').classList.remove('open');
+  paused = false;
+  state = 'playing';
+  lastTs = performance.now();
+  showLevelFlash('⚡ ENDLESS\nGO!');
+}
+
+function updateProgress() {
+  if (isEndless) return;
+  const pct = Math.min(sliced / LEVELS[currentLevel].target * 100, 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `${sliced} / ${LEVELS[currentLevel].target} FRUITS`;
+}
+
+// ══════════════════════════════════════
+//  PAUSE / QUIT
+// ══════════════════════════════════════
+function togglePause() {
+  paused = !paused;
+  const o = document.getElementById('pauseOverlay');
+  o.style.display = paused ? 'flex' : 'none';
+  if (!paused) lastTs = performance.now();
+}
+function quitToMenu() {
+  paused = false;
+  document.getElementById('pauseOverlay').style.display = 'none';
+  showScreen('scHome');
+}
+function restartCurrent() {
+  document.getElementById('resultModal').classList.remove('open');
+  document.getElementById('pauseOverlay').style.display = 'none';
+  paused = false;
+  if (isEndless) startEndlessGame();
+  else startLevel(currentLevel);
+}
+
+// ══════════════════════════════════════
+//  SPAWN
+// ══════════════════════════════════════
+function spawnObj() {
+  const x = W * 0.08 + Math.random() * W * 0.84;
+  const freeze = activePU.freeze > 0;
+  const speedF = freeze ? 0.45 : 1;
+
+  // powerup drop chance
+  if (!isEndless && Math.random() < .06 && sliced > 0) { spawnPowerupDrop(x); return; }
+  if (isEndless && Math.random() < .04 && sliced > 5) { spawnPowerupDrop(x); return; }
+
+  const bombChance = isEndless
+    ? Math.min(.12 + endless_diff * .025, .38)
+    : (LEVELS[currentLevel].bombs);
+  const isBomb = Math.random() < bombChance;
+
+  // ── PERFECT ARC PHYSICS ──────────────────────────────────────────
+  // Peak height is ALWAYS a fixed fraction of screen height — this never
+  // changes with level/difficulty, so fruits can never fly off the top.
+  // "Speed" only scales gravity & velocity TOGETHER (same ratio), which
+  // makes the whole arc play out faster/slower in time, while the peak
+  // height (and therefore on-screen visibility) stays identical.
+  const minPeakFrac = 0.50, maxPeakFrac = 0.78;
+  const peakHeight = H * (minPeakFrac + Math.random() * (maxPeakFrac - minPeakFrac));
+
+  const diffMult = isEndless
+    ? (1 + Math.min(endless_diff, 5) * 0.12)      // capped — endless still ramps but plateaus
+    : LEVELS[currentLevel].speed;
+
+  const speedClamped = Math.min(diffMult, 2.2);    // hard safety ceiling at any level
+  const grav = 0.30 * speedClamped;                // scale gravity with speed
+  const requiredVy = -Math.sqrt(2 * grav * peakHeight) * speedF;
+
+  const obj = {
+    x, y: H + 70,
+    vx: (Math.random()-.5) * 3.2 * Math.sqrt(speedClamped),
+    vy: requiredVy,
+    grav: grav * speedF,
+    isBomb, isPU: false,
+    sliced: false,
+    rot: Math.random()*Math.PI*2,
+    rotV: (Math.random()-.5)*.09,
+    alpha: 1, scale: 1,
+  };
+  if (!isBomb) {
+    const f = FRUITS[Math.floor(Math.random()*FRUITS.length)];
+    obj.fruit = f;
+    obj.size = f.sz * (.85 + Math.random()*.3);
+    obj.score = f.pts;
+  } else {
+    obj.size = 38;
+  }
+  objects.push(obj);
+}
+
+function spawnPowerupDrop(x) {
+  const pu = POWERUPS[Math.floor(Math.random()*POWERUPS.length)];
+  const grav = 0.28;
+  const peakHeight = H * (0.5 + Math.random() * 0.25);
+  const vy = -Math.sqrt(2 * grav * peakHeight);
+  objects.push({
+    x, y: H+70,
+    vx: (Math.random()-.5)*2,
+    vy: vy,
+    grav: grav, isBomb:false, isPU:true, pu,
+    sliced:false,
+    rot:0, rotV:.04,
+    alpha:1, scale:1,
+    size:34,
+  });
+}
+
+// ══════════════════════════════════════
+//  POWERUP SYSTEM
+// ══════════════════════════════════════
+function activatePU(pu) {
+  sfxPowerup();
+  bumpLifetime({ powerupsUsed: 1 });
+  announcePickup(pu);
+  if (pu.id === 'shield') { lives = Math.min(lives+1, 3); updateHUD(); return; }
+  if (pu.id === 'bomb') {
+    objects.forEach(o => { if (!o.isBomb && !o.isPU && !o.sliced) { sliceObject(o, true); } });
+    return;
+  }
+  if (pu.id === 'freeze') sfxFreeze();
+  if (pu.id === 'frenzy') sfxFrenzy();
+  activePU[pu.id] = pu.dur;
+}
+
+function updatePUSlots() {
+  for (let i=0;i<3;i++) {
+    const pu = puQueue[i];
+    document.getElementById(`puIcon${i}`).textContent = pu ? pu.e : '—';
+    const slot = document.getElementById(`puSlot${i}`);
+    const cd = document.getElementById(`puCd${i}`);
+    if (pu && activePU[pu.id] > 0) {
+      slot.classList.add('active-pu');
+      cd.style.display = 'block';
+      cd.textContent = Math.ceil(activePU[pu.id])+'s';
+    } else {
+      slot.classList.remove('active-pu');
+      cd.style.display = 'none';
+    }
+  }
+}
+
+// ══════════════════════════════════════
+//  SLICE
+// ══════════════════════════════════════
+function checkSlice(x1,y1,x2,y2) {
+  objects.forEach(obj => {
+    if (obj.sliced) return;
+    const dx=x2-x1,dy=y2-y1;
+    const t=Math.max(0,Math.min(1,(((obj.x-x1)*dx+(obj.y-y1)*dy)/(dx*dx+dy*dy+.001))));
+    const dist=Math.hypot(x1+t*dx-obj.x, y1+t*dy-obj.y);
+    if (dist < obj.size * 1.15) sliceObject(obj);
+  });
+}
+
+function sliceObject(obj, silent=false) {
+  if (obj.sliced) return;
+  obj.sliced = true;
+
+  if (obj.isPU) {
+    if (puQueue.length < 3) { puQueue.push(obj.pu); activatePU(obj.pu); updatePUSlots(); }
+    spawnParticles(obj.x, obj.y, '#ffd700', 14);
+    spawnFloatText(obj.x, obj.y-30, obj.pu.label+'!', '#ffd700', 18);
+    return;
+  }
+  if (obj.isBomb) {
+    if (silent) return;
+    sfxBomb(); bombsHit++;
+    bumpLifetime({ totalBombsHit: 1 });
+    spawnParticles(obj.x, obj.y, '#ff4500', 22);
+    spawnParticles(obj.x, obj.y, '#ff8c00', 10);
+    spawnFloatText(obj.x, obj.y-30, '💣 -1 LIFE', '#ff4444', 18);
+    lives--;
+    combo = 0;
+    document.getElementById('comboBadge').classList.remove('show');
+    updateHUD();
+    // screen flash
+    const fl = document.createElement('div');
+    fl.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(255,0,0,.25);pointer-events:none;z-index:500;animation:shockwave .5s ease-out;';
+    document.body.appendChild(fl); setTimeout(()=>fl.remove(),500);
+    if (lives <= 0) { setTimeout(endGame,300); }
+    return;
+  }
+
+  // Normal fruit
+  combo++;
+  if (combo > bestCombo) bestCombo = combo;
+  comboTimer = 1.8;
+  const frenzy = activePU.frenzy > 0;
+  const magnet = activePU.magnet > 0;
+  const mult = frenzy ? 2 : (combo >= 5 ? 3 : combo >= 3 ? 2 : 1);
+  const pts = obj.score * mult;
+  score += pts;
+  sliced++;
+  bumpLifetime({ totalSliced: 1, fruitCounts: { [obj.fruit.name]: 1 } });
+  { const lt = getLifetime(); if (combo > (lt.bestComboEver || 0)) { lt.bestComboEver = combo; saveLifetime(lt); } }
+  sfxSlice(obj.fruit.name);
+  spawnParticles(obj.x, obj.y, obj.fruit.color, 14);
+  spawnParticles(obj.x, obj.y, obj.fruit.inner, 7);
+  const label = combo>=5 ? `🔥×${mult} +${pts}` : `+${pts}`;
+  const col = combo>=5?'#ff4':'#ffd700';
+  spawnFloatText(obj.x, obj.y-obj.size, label, col, combo>=3?22:17);
+  if (combo >= 3) { sfxCombo(combo); showCombo(combo); }
+  updateHUD();
+  updateProgress();
+
+  if (!isEndless && sliced >= LEVELS[currentLevel].target) {
+    setTimeout(levelComplete, 400);
+  }
+  if (isEndless) {
+    endless_diff = sliced / 12;
+    spawnInterval = Math.max(450, 1800 - sliced*18);
+    speedMult = .5 + Math.min(endless_diff*.9, 1.6);
+    document.getElementById('levelDisp').textContent = `⚡ ENDLESS — ${sliced} FRUITS`;
+  }
+}
+
+// ══════════════════════════════════════
+//  PARTICLES
+// ══════════════════════════════════════
+function spawnParticles(x,y,color,n=12) {
+  if (!cfg.particles) return;
+  for (let i=0;i<n;i++) {
+    const a=Math.random()*Math.PI*2, sp=1.5+Math.random()*5;
+    particles.push({
+      x,y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-2,
+      color, alpha:1, size:2+Math.random()*6,
+      life:.7+Math.random()*.6, maxLife:0, shape:Math.random()<.3?'sq':'ci'
+    });
+    particles[particles.length-1].maxLife=particles[particles.length-1].life;
+  }
+}
+
+// ══════════════════════════════════════
+//  GAME END / LEVEL COMPLETE
+// ══════════════════════════════════════
+function levelComplete() {
+  state='menu';
+  sfxLvlComplete();
+  const elapsed = (performance.now()-startTime)/1000;
+  const lv = LEVELS[currentLevel];
+  const st = score>lv.target*22?3:score>lv.target*14?2:1;
+  const prevStars = SAVE.get('levelStars') || {};
+  const wasAlready3Star = (prevStars[currentLevel]||0) === 3;
+  if ((prevStars[currentLevel]||0) < st) { prevStars[currentLevel]=st; SAVE.set('levelStars',prevStars); }
+
+  bumpLifetime({
+    totalPlaytime: elapsed,
+    perfectLevels: missed === 0 ? 1 : 0,
+    levelsCleared3Star: (st === 3 && !wasAlready3Star) ? 1 : 0,
+  });
+  if (lv.target > 0) {
+    const lt = getLifetime();
+    const clearTime = elapsed / lv.target;
+    if (lt.fastestLevelClear === null || clearTime < lt.fastestLevelClear) {
+      lt.fastestLevelClear = clearTime; saveLifetime(lt);
+    }
+  }
+
+  document.getElementById('resStars').textContent='⭐'.repeat(st)+'☆'.repeat(3-st);
+  document.getElementById('resTitle').textContent=`Level ${currentLevel+1} Complete!`;
+  document.getElementById('resScore').textContent=score;
+  const msgs=['Fruit Master!','Blade of Glory!','Slice Perfection!','Legendary!'];
+  document.getElementById('resMsg').textContent=msgs[Math.floor(Math.random()*msgs.length)];
+  document.getElementById('statCombo').textContent='×'+bestCombo;
+  document.getElementById('statMissed').textContent=missed;
+  document.getElementById('statTime').textContent=Math.round(elapsed)+'s';
+  const nb=document.getElementById('nextLvBtn');
+  nb.style.display=currentLevel<LEVELS.length-1?'':'none';
+  hideGameUI();
+  document.getElementById('resultModal').classList.add('open');
+}
+
+function endGame() {
+  state='menu';
+  sfxGameOver();
+  const elapsed=(performance.now()-startTime)/1000;
+  if (isEndless) {
+    const prev=SAVE.get('bestScore')||0;
+    if(score>prev) SAVE.set('bestScore',score);
+    const lb=SAVE.get('leaderboard')||[];
+    lb.push({score,fruits:sliced,time:Math.round(elapsed),combo:bestCombo,date:new Date().toLocaleDateString()});
+    lb.sort((a,b)=>b.score-a.score);
+    SAVE.set('leaderboard',lb.slice(0,10));
+  }
+  document.getElementById('resStars').textContent='💀';
+  document.getElementById('resTitle').textContent=isEndless?'Game Over!':'You Failed!';
+  document.getElementById('resScore').textContent=score;
+  document.getElementById('resMsg').textContent=isEndless?`${sliced} fruits sliced!`:'Out of lives!';
+  document.getElementById('statCombo').textContent='×'+bestCombo;
+  document.getElementById('statMissed').textContent=missed;
+  document.getElementById('statTime').textContent=Math.round(elapsed)+'s';
+  document.getElementById('nextLvBtn').style.display='none';
+  hideGameUI();
+  document.getElementById('resultModal').classList.add('open');
+}
+
+function hideGameUI() {
+  document.getElementById('hud').style.display='none';
+  document.getElementById('pauseBtn').style.display='none';
+  document.getElementById('progressWrap').style.display='none';
+  document.getElementById('powerupSlots').style.display='none';
+  document.getElementById('timerBar').style.display='none';
+}
+
+function nextOrMenu(next) {
+  document.getElementById('resultModal').classList.remove('open');
+  if(next && !isEndless && currentLevel<LEVELS.length-1) startLevel(currentLevel+1);
+  else showScreen('scHome');
+}
+
+// ══════════════════════════════════════
+//  LEADERBOARD
+// ══════════════════════════════════════
+function renderLeaderboard() {
+  const lb=SAVE.get('leaderboard')||[];
+  const el=document.getElementById('lbList');
+  if(!lb.length){el.innerHTML='<div style="color:#4a5a7a;text-align:center;padding:30px;">No scores yet!<br>Play Endless Mode first.</div>';return;}
+  el.innerHTML=lb.map((e,i)=>{
+    const medals=['🥇','🥈','🥉'];
+    const rankClass=i<3?['gold','silver','bronze'][i]:'';
+    return `<div class="lb-row">
+      <span class="lb-rank ${rankClass}">${medals[i]||i+1}</span>
+      <span class="lb-name">${e.fruits} fruits</span>
+      <div style="text-align:right">
+        <span class="lb-score">${e.score}</span>
+        <div style="font-size:11px;color:#4a5a7a;">×${e.combo} | ${e.date}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  BG ANIMATION (home screen drifting emojis)
+// ══════════════════════════════════════
+const bgFruits=[];
+for(let i=0;i<18;i++) bgFruits.push({
+  x:Math.random()*800, y:Math.random()*600,
+  vx:(Math.random()-.5)*.4, vy:(Math.random()-.5)*.4,
+  e:FRUITS[Math.floor(Math.random()*FRUITS.length)].e,
+  sz:16+Math.random()*28, alpha:.08+Math.random()*.1
+});
+function drawBg() {
+  if(state!=='home') return;
+  bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  bgFruits.forEach(f=>{
+    f.x+=f.vx; f.y+=f.vy;
+    if(f.x<-40)f.x=bgCanvas.width+40;
+    if(f.x>bgCanvas.width+40)f.x=-40;
+    if(f.y<-40)f.y=bgCanvas.height+40;
+    if(f.y>bgCanvas.height+40)f.y=-40;
+    bgCtx.globalAlpha=f.alpha;
+    bgCtx.font=`${f.sz}px serif`;
+    bgCtx.fillText(f.e,f.x,f.y);
+  });
+  bgCtx.globalAlpha=1;
+}
+
+// ══════════════════════════════════════
+//  MAIN LOOP
+// ══════════════════════════════════════
+function loop(ts) {
+  requestAnimationFrame(loop);
+  dt = Math.min((ts-lastTs)/1000, .05);
+  lastTs = ts;
+
+  ctx.clearRect(0,0,W,H);
+  // bg gradient
+  const bg=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*.75);
+  bg.addColorStop(0,'#0d0d2e');bg.addColorStop(1,'#07071a');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  drawBg();
+
+  if (state!=='playing' || paused) { drawTrail(); drawFloatTexts(); return; }
+
+  // ── Active powerup timers
+  Object.keys(activePU).forEach(k=>{
+    if(activePU[k]>0){ activePU[k]-=dt; if(activePU[k]<=0) activePU[k]=0; }
+  });
+  updatePUSlots();
+
+  // ── Timer (leveled mode)
+  if (!isEndless) {
+    levelTime -= dt;
+    const pct=Math.max(0,levelTime/maxTime);
+    document.getElementById('timerFill').style.width=(pct*100)+'%';
+    document.getElementById('timerFill').style.background=
+      pct>.5?'linear-gradient(90deg,#ff6b35,#ffd700)':
+      pct>.2?'linear-gradient(90deg,#f90,#f50)':'linear-gradient(90deg,#f00,#f50)';
+    if(levelTime<=0 && state==='playing') { state='menu'; setTimeout(endGame,100); }
+  }
+
+  // ── Combo decay
+  if(comboTimer>0){comboTimer-=dt;if(comboTimer<=0){combo=0;}}
+
+  // ── Magnet: pull fruits toward cursor
+  if(activePU.magnet>0) {
+    objects.forEach(o=>{if(!o.sliced&&!o.isBomb&&!o.isPU){
+      const dx=mouse.x-o.x,dy=mouse.y-o.y,d=Math.hypot(dx,dy);
+      if(d<200){o.vx+=dx/d*1.2;o.vy+=dy/d*1.2;}
+    }});
+  }
+
+  // ── Spawn
+  spawnT+=dt*1000;
+  if(spawnT>=spawnInterval){
+    spawnT=0;
+    const n=isEndless&&sliced>25?2:1;
+    for(let i=0;i<n;i++) setTimeout(()=>{if(state==='playing')spawnObj();},i*220);
+  }
+
+  // ── Update objects
+  const freeze=activePU.freeze>0;
+  objects=objects.filter(obj=>{
+    const slowMult=freeze&&!obj.isBomb&&!obj.isPU?.3:1;
+    obj.x+=obj.vx*slowMult;
+    obj.y+=obj.vy*slowMult;
+    obj.vy+=obj.grav*slowMult;
+    obj.rot+=obj.rotV;
+
+    if(obj.sliced){
+      obj.alpha-=dt*3; obj.scale+=dt*2.5;
+      return obj.alpha>0;
+    }
+    if(obj.y>H+100){
+      if(!obj.isBomb&&!obj.isPU){
+        sfxMiss(); missed++;
+        bumpLifetime({ totalMissed: 1 });
+        spawnFloatText(obj.x,H-20,'MISSED','#f66',16);
+      }
+      return false;
+    }
+
+    // Draw object
+    ctx.save();
+    ctx.translate(obj.x,obj.y);
+    ctx.rotate(obj.rot);
+    ctx.scale(obj.scale,obj.scale);
+    ctx.globalAlpha=obj.alpha;
+
+    if(obj.isBomb){
+      ctx.font=`${obj.size*1.6}px serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText('💣',0,0);
+      // fuse
+      ctx.shadowBlur=10;ctx.shadowColor='#fa0';
+      ctx.beginPath();ctx.moveTo(obj.size*.5,-obj.size*.6);
+      ctx.quadraticCurveTo(obj.size*.9,-obj.size*1.3,obj.size*.4,-obj.size*1.5);
+      ctx.strokeStyle='#fa0';ctx.lineWidth=2;ctx.stroke();
+      ctx.shadowBlur=0;
+    } else if(obj.isPU){
+      ctx.beginPath();ctx.arc(0,0,obj.size,0,Math.PI*2);
+      ctx.fillStyle=obj.pu.color+'33';
+      ctx.fill();
+      ctx.strokeStyle=obj.pu.color;ctx.lineWidth=2;ctx.stroke();
+      // pulse ring
+      const pf=(Math.sin(ts*.004)+1)*.5;
+      ctx.beginPath();ctx.arc(0,0,obj.size*(1+pf*.3),0,Math.PI*2);
+      ctx.strokeStyle=obj.pu.color+'55';ctx.lineWidth=1;ctx.stroke();
+      ctx.font=`${obj.size*1.3}px serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(obj.pu.e,0,0);
+    } else {
+      ctx.font=`${obj.size*1.6}px serif`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(obj.fruit.e,0,0);
+      // shine
+      ctx.beginPath();
+      ctx.ellipse(-obj.size*.22,-obj.size*.26,obj.size*.16,obj.size*.09,-0.4,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,255,255,.38)';ctx.fill();
+      // freeze tint
+      if(freeze){
+        ctx.fillStyle='rgba(100,200,255,.2)';
+        ctx.beginPath();ctx.arc(0,0,obj.size,0,Math.PI*2);ctx.fill();
+      }
+    }
+    ctx.restore();
+    return true;
+  });
+
+  // ── Particles
+  particles=particles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=.1;
+    p.life-=dt;p.alpha=p.life/p.maxLife;
+    if(p.life<=0)return false;
+    ctx.save();ctx.globalAlpha=p.alpha;
+    ctx.fillStyle=p.color;
+    if(p.shape==='sq'){
+      ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+    } else {
+      ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.alpha*.7+p.size*.3,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore();return true;
+  });
+
+  drawTrail();
+  drawFloatTexts();
+}
+
+function drawTrail(){
+  if(trail.length<2)return;
+  ctx.save();
+  for(let i=1;i<trail.length;i++){
+    const t=i/trail.length;
+    ctx.beginPath();
+    ctx.moveTo(trail[i-1].x,trail[i-1].y);
+    ctx.lineTo(trail[i].x,trail[i].y);
+    ctx.strokeStyle=cfg.trailColor;
+    ctx.lineWidth=t*5;ctx.globalAlpha=t*.85;ctx.lineCap='round';ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=t*2;
+    ctx.globalAlpha=t*.4;ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawFloatTexts(){
+  floatTexts=floatTexts.filter(f=>{
+    f.y-=1.6;f.life-=dt;
+    if(f.life<=0)return false;
+    ctx.save();ctx.globalAlpha=Math.min(f.life/.4,1);
+    ctx.font=`900 ${f.size}px 'Segoe UI',Arial`;
+    ctx.textAlign='center';ctx.fillStyle=f.color;
+    ctx.fillText(f.text,f.x,f.y);
+    ctx.restore();return true;
+  });
+}
+
+// ══════════════════════════════════════
+//  INPUT
+// ══════════════════════════════════════
+function getXY(e){
+  const t=e.touches?e.touches[0]:e;
+  return{x:t.clientX,y:t.clientY};
+}
+function onDown(e){
+  initAudio();
+  const p=getXY(e);
+  mouse.px=mouse.x=p.x;mouse.py=mouse.y=p.y;
+  mouse.down=true;trail=[{x:p.x,y:p.y}];
+}
+function onMove(e){
+  if(!mouse.down)return;
+  e.preventDefault();
+  const p=getXY(e);
+  mouse.px=mouse.x;mouse.py=mouse.y;
+  mouse.x=p.x;mouse.y=p.y;
+  trail.push({x:p.x,y:p.y});
+  if(trail.length>22)trail.shift();
+  if(state==='playing'&&!paused)checkSlice(mouse.px,mouse.py,mouse.x,mouse.y);
+}
+function onUp(){mouse.down=false;trail=[];}
+
+canvas.addEventListener('mousedown',onDown);
+canvas.addEventListener('mousemove',onMove);
+canvas.addEventListener('mouseup',onUp);
+canvas.addEventListener('touchstart',onDown,{passive:false});
+canvas.addEventListener('touchmove',onMove,{passive:false});
+canvas.addEventListener('touchend',onUp);
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Escape'&&state==='playing')togglePause();
+  if(e.code==='KeyP'&&state==='playing')togglePause();
+});
+
+// ══════════════════════════════════════
+//  BACKGROUND MUSIC ENGINE
+//  Procedural chiptune — no files needed
+// ══════════════════════════════════════
+let musicNodes = [];
+let musicPlaying = false;
+let musicStarted = false;
+
+const MELODY = [
+  523,587,659,784, 880,784,659,587,
+  523,440,494,523, 587,659,784,880,
+  784,698,659,587, 523,494,440,392,
+  440,494,523,587, 659,784,880,784
+];
+const BASS = [130,130,146,146,164,164,146,146];
+
+function startMusic() {
+  if (!cfg.music || !audioCtx || musicPlaying) return;
+  musicPlaying = true;
+  let step = 0, bassStep = 0;
+  const bpm = 138, beat = 60 / bpm;
+
+  function playMelodyNote() {
+    if (!cfg.music || !musicPlaying) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const f = audioCtx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 2200;
+    o.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    o.type = 'square';
+    o.frequency.value = MELODY[step % MELODY.length];
+    const t = audioCtx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(cfg.volume * 0.06, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 0.7);
+    o.start(t); o.stop(t + beat * 0.75);
+    musicNodes.push(o);
+    step++;
+    if (musicPlaying) setTimeout(playMelodyNote, beat * 1000);
+  }
+
+  function playBassNote() {
+    if (!cfg.music || !musicPlaying) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = 'triangle';
+    o.frequency.value = BASS[bassStep % BASS.length];
+    const t = audioCtx.currentTime;
+    g.gain.setValueAtTime(cfg.volume * 0.08, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + beat * 1.8);
+    o.start(t); o.stop(t + beat * 2);
+    musicNodes.push(o);
+    bassStep++;
+    if (musicPlaying) setTimeout(playBassNote, beat * 2000);
+  }
+
+  function playHat() {
+    if (!cfg.music || !musicPlaying) return;
+    if (audioCtx) {
+      const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = audioCtx.createBufferSource();
+      const g = audioCtx.createGain();
+      const hpf = audioCtx.createBiquadFilter();
+      hpf.type = 'highpass'; hpf.frequency.value = 6000;
+      src.buffer = buf;
+      src.connect(hpf); hpf.connect(g); g.connect(audioCtx.destination);
+      g.gain.value = cfg.volume * 0.04;
+      src.start();
+    }
+    if (musicPlaying) setTimeout(playHat, beat * 500);
+  }
+
+  playMelodyNote();
+  setTimeout(playBassNote, beat * 500);
+  setTimeout(playHat, beat * 250);
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  musicNodes.forEach(n => { try { n.stop(); } catch {} });
+  musicNodes = [];
+}
+
+function syncMusic() {
+  if (cfg.music && audioCtx && state === 'playing' && !musicPlaying) startMusic();
+  if (!cfg.music && musicPlaying) stopMusic();
+}
+
+// ══════════════════════════════════════
+//  ACHIEVEMENT / TOAST SYSTEM
+// ══════════════════════════════════════
+const ACHIEVEMENTS = [
+  { id:'first_slice',   label:'First Blood',    desc:'Slice your first fruit',         icon:'🍉', test: s => s.totalSliced >= 1       },
+  { id:'combo5',        label:'Combo King',     desc:'Land a ×5 combo',                icon:'🔥', test: s => s.bestCombo >= 5         },
+  { id:'combo10',       label:'Unstoppable',    desc:'Land a ×10 combo',               icon:'💥', test: s => s.bestCombo >= 10        },
+  { id:'score500',      label:'High Roller',    desc:'Score 500 in one game',          icon:'⭐', test: s => s.highScore >= 500       },
+  { id:'score2000',     label:'Legend',         desc:'Score 2000 in one game',         icon:'👑', test: s => s.highScore >= 2000      },
+  { id:'no_miss',       label:'Perfectionist',  desc:'Complete a level without missing',icon:'💎',test: s => s.perfectLevel           },
+  { id:'30fruits',      label:'Fruit Ninja',    desc:'Slice 30 fruits in endless',     icon:'🥷', test: s => s.endlessBest >= 30      },
+  { id:'all_levels',    label:'Fruit Master',   desc:'Complete all 150 levels',        icon:'🏆', test: s => s.levelsCleared >= 150     },
+
+  { id:'slice_50', label:'Apprentice Slicer', desc:'Slice 50 fruits lifetime', icon:'🔪', test: s => getLifetime().totalSliced >= 50 },
+  { id:'slice_250', label:'Skilled Slicer', desc:'Slice 250 fruits lifetime', icon:'🗡️', test: s => getLifetime().totalSliced >= 250 },
+  { id:'slice_1000', label:'Veteran Slicer', desc:'Slice 1,000 fruits lifetime', icon:'⚔️', test: s => getLifetime().totalSliced >= 1000 },
+  { id:'slice_5000', label:'Slice Legend', desc:'Slice 5,000 fruits lifetime', icon:'🏯', test: s => getLifetime().totalSliced >= 5000 },
+  { id:'slice_10000', label:'Fruit Annihilator', desc:'Slice 10,000 fruits lifetime', icon:'☠️', test: s => getLifetime().totalSliced >= 10000 },
+  { id:'games_10', label:'Getting Started', desc:'Play 10 games', icon:'🎮', test: s => getLifetime().gamesPlayed >= 10 },
+  { id:'games_50', label:'Regular Player', desc:'Play 50 games', icon:'🕹️', test: s => getLifetime().gamesPlayed >= 50 },
+  { id:'games_200', label:'Dedicated Player', desc:'Play 200 games', icon:'🏅', test: s => getLifetime().gamesPlayed >= 200 },
+  { id:'levels_10', label:'Level Explorer', desc:'Clear 10 levels', icon:'🗺️', test: s => Object.keys(SAVE.get('levelStars')||{}).length >= 10 },
+  { id:'levels_25', label:'Level Voyager', desc:'Clear 25 levels', icon:'🧭', test: s => Object.keys(SAVE.get('levelStars')||{}).length >= 25 },
+  { id:'levels_50', label:'Level Conqueror', desc:'Clear 50 levels', icon:'🏰', test: s => Object.keys(SAVE.get('levelStars')||{}).length >= 50 },
+  { id:'levels_100', label:'Level Champion', desc:'Clear 100 levels', icon:'👑', test: s => Object.keys(SAVE.get('levelStars')||{}).length >= 100 },
+  { id:'levels_150', label:'Grand Master', desc:'Clear all 150 levels', icon:'🌟', test: s => Object.keys(SAVE.get('levelStars')||{}).length >= 150 },
+  { id:'combo_15', label:'Combo Virtuoso', desc:'Land a ×15 combo', icon:'💫', test: s => getLifetime().bestComboEver >= 15 },
+  { id:'combo_20', label:'Combo Deity', desc:'Land a ×20 combo', icon:'🌠', test: s => getLifetime().bestComboEver >= 20 },
+  { id:'combo_30', label:'Combo Singularity', desc:'Land a ×30 combo', icon:'🕳️', test: s => getLifetime().bestComboEver >= 30 },
+  { id:'score_3000', label:'Score Hunter', desc:'Score 3,000 in one game', icon:'🎯', test: s => s.highScore >= 3000 },
+  { id:'score_5000', label:'Score Crusher', desc:'Score 5,000 in one game', icon:'💪', test: s => s.highScore >= 5000 },
+  { id:'score_10000', label:'Score Titan', desc:'Score 10,000 in one game', icon:'🦾', test: s => s.highScore >= 10000 },
+  { id:'perfect_5', label:'Clean Hands', desc:'Complete 5 levels without missing', icon:'🧼', test: s => getLifetime().perfectLevels >= 5 },
+  { id:'perfect_20', label:'Flawless', desc:'Complete 20 levels without missing', icon:'💎', test: s => getLifetime().perfectLevels >= 20 },
+  { id:'perfect_50', label:'Untouchable', desc:'Complete 50 levels without missing', icon:'🛡️', test: s => getLifetime().perfectLevels >= 50 },
+  { id:'stars_10', label:'Rising Star', desc:'Earn 3 stars on 10 levels', icon:'⭐', test: s => getLifetime().levelsCleared3Star >= 10 },
+  { id:'stars_30', label:'Star Collector', desc:'Earn 3 stars on 30 levels', icon:'🌟', test: s => getLifetime().levelsCleared3Star >= 30 },
+  { id:'stars_75', label:'Constellation', desc:'Earn 3 stars on 75 levels', icon:'✨', test: s => getLifetime().levelsCleared3Star >= 75 },
+  { id:'stars_150', label:'Galaxy of Stars', desc:'Earn 3 stars on all 150 levels', icon:'🌌', test: s => getLifetime().levelsCleared3Star >= 150 },
+  { id:'endless_50', label:'Marathoner', desc:'Slice 50 fruits in one endless run', icon:'🏃', test: s => s.endlessBest >= 50 },
+  { id:'endless_75', label:'Endurance Master', desc:'Slice 75 fruits in one endless run', icon:'🏆', test: s => s.endlessBest >= 75 },
+  { id:'endless_100', label:'Endless Hero', desc:'Slice 100 fruits in one endless run', icon:'🦸', test: s => s.endlessBest >= 100 },
+  { id:'endless_150', label:'Endless Legend', desc:'Slice 150 fruits in one endless run', icon:'🐉', test: s => s.endlessBest >= 150 },
+  { id:'powerups_10', label:'Power Player', desc:'Use 10 power-ups', icon:'🔋', test: s => getLifetime().powerupsUsed >= 10 },
+  { id:'powerups_50', label:'Power Master', desc:'Use 50 power-ups', icon:'⚡', test: s => getLifetime().powerupsUsed >= 50 },
+  { id:'powerups_150', label:'Power Overlord', desc:'Use 150 power-ups', icon:'🌀', test: s => getLifetime().powerupsUsed >= 150 },
+  { id:'bombs_10', label:'Bomb Magnet', desc:'Trigger 10 bombs total', icon:'💣', test: s => getLifetime().totalBombsHit >= 10 },
+  { id:'bombs_50', label:'Demolitions Fan', desc:'Trigger 50 bombs total', icon:'🧨', test: s => getLifetime().totalBombsHit >= 50 },
+  { id:'sharp_eyes', label:'Sharp Eyes', desc:'Complete 2 levels without missing', icon:'👀', test: s => getLifetime().perfectLevels >= 2 },
+  { id:'watermelon_100', label:'Melon Master', desc:'Slice 100 watermelons', icon:'🍉', test: s => (getLifetime().fruitCounts.watermelon||0) >= 100 },
+  { id:'orange_100', label:'Citrus Champion', desc:'Slice 100 oranges', icon:'🍊', test: s => (getLifetime().fruitCounts.orange||0) >= 100 },
+  { id:'grape_100', label:'Vineyard Veteran', desc:'Slice 100 grapes', icon:'🍇', test: s => (getLifetime().fruitCounts.grape||0) >= 100 },
+  { id:'strawberry_100', label:'Berry Boss', desc:'Slice 100 strawberries', icon:'🍓', test: s => (getLifetime().fruitCounts.strawberry||0) >= 100 },
+  { id:'mango_100', label:'Mango Maniac', desc:'Slice 100 mangoes', icon:'🥭', test: s => (getLifetime().fruitCounts.mango||0) >= 100 },
+  { id:'cherry_100', label:'Cherry Picker', desc:'Slice 100 cherries', icon:'🍒', test: s => (getLifetime().fruitCounts.cherry||0) >= 100 },
+  { id:'pineapple_100', label:'Pineapple Pro', desc:'Slice 100 pineapples', icon:'🍍', test: s => (getLifetime().fruitCounts.pineapple||0) >= 100 },
+  { id:'kiwi_100', label:'Kiwi Connoisseur', desc:'Slice 100 kiwis', icon:'🥝', test: s => (getLifetime().fruitCounts.kiwi||0) >= 100 },
+  { id:'night_owl', label:'Night Owl', desc:'Play 5 games between 10pm-5am', icon:'🦉', test: s => getLifetime().nightPlays >= 5 },
+  { id:'playtime_1hr', label:'One Hour Club', desc:'Play for a total of 1 hour', icon:'⏱️', test: s => getLifetime().totalPlaytime >= 3600 },
+  { id:'playtime_5hr', label:'Five Hour Club', desc:'Play for a total of 5 hours', icon:'⏳', test: s => getLifetime().totalPlaytime >= 18000 },
+  { id:'speedrunner', label:'Speedrunner', desc:'Clear a level in record time', icon:'🏎️', test: s => getLifetime().fastestLevelClear !== null && getLifetime().fastestLevelClear < 1.0 },
+  { id:'all_fruits', label:'Fruit Connoisseur', desc:'Slice every fruit type at least once', icon:'🍇', test: s => Object.keys(getLifetime().fruitCounts||{}).length >= 12 },
+  { id:'completionist', label:'Completionist', desc:'Clear all 150 levels with 3 stars', icon:'🏆', test: s => getLifetime().levelsCleared3Star >= 150 && Object.keys(SAVE.get('levelStars')||{}).length >= 150 },
+];
+
+let toastQueue = [];
+let toastActive = false;
+
+function checkAchievements(stats) {
+  const unlocked = SAVE.get('achievements') || {};
+  ACHIEVEMENTS.forEach(a => {
+    if (!unlocked[a.id] && a.test(stats)) {
+      unlocked[a.id] = Date.now();
+      SAVE.set('achievements', unlocked);
+      queueToast(a.icon, a.label, a.desc);
+    }
+  });
+}
+
+function queueToast(icon, title, sub) {
+  toastQueue.push({ icon, title, sub });
+  if (!toastActive) showNextToast();
+}
+
+function showNextToast() {
+  if (!toastQueue.length) { toastActive = false; return; }
+  toastActive = true;
+  const t = toastQueue.shift();
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:fixed;bottom:90px;right:20px;
+    background:linear-gradient(135deg,#1a1a40,#0d0d25);
+    border:1.5px solid rgba(255,215,0,.45);border-radius:16px;
+    padding:12px 18px;display:flex;align-items:center;gap:12px;
+    z-index:600;pointer-events:none;color:#fff;
+    box-shadow:0 8px 28px rgba(0,0,0,.6);
+    transform:translateX(120%);transition:transform .35s cubic-bezier(.34,1.56,.64,1);
+    max-width:260px;`;
+  el.innerHTML = `
+    <span style="font-size:26px">${t.icon}</span>
+    <div>
+      <div style="font-size:11px;color:#ffd700;letter-spacing:2px;font-weight:700;">ACHIEVEMENT</div>
+      <div style="font-size:14px;font-weight:900;">${t.title}</div>
+      <div style="font-size:11px;color:#6677aa;">${t.sub}</div>
+    </div>`;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => {
+    el.style.transform = 'translateX(0)';
+    setTimeout(() => {
+      el.style.transform = 'translateX(120%)';
+      setTimeout(() => { el.remove(); showNextToast(); }, 380);
+    }, 2800);
+  });
+}
+
+// ══════════════════════════════════════
+//  DAILY CHALLENGE SYSTEM
+// ══════════════════════════════════════
+function getDailyChallenge() {
+  const today = new Date().toISOString().slice(0, 10);
+  const seed = today.split('-').reduce((a, b) => a * 31 + parseInt(b), 0);
+  const types = [
+    { label: 'Score Attack',   desc: 'Score 300 pts in Level 1',   goal: 300,  key: 'score',  level: 0 },
+    { label: 'Speed Slicer',   desc: 'Slice 20 fruits in Endless', goal: 20,   key: 'sliced', level: -1 },
+    { label: 'Bomb Dodger',    desc: 'Finish Level 3 with 3 lives', goal: 3,   key: 'lives',  level: 2 },
+    { label: 'Combo Master',   desc: 'Hit ×5 combo in Level 2',    goal: 5,    key: 'combo',  level: 1 },
+    { label: 'Perfectionist',  desc: 'Clear Level 1 with 0 missed', goal: 0,   key: 'missed', level: 0 },
+  ];
+  return { ...types[seed % types.length], date: today };
+}
+
+function buildDailyChallenge() {
+  const dc = getDailyChallenge();
+  const done = SAVE.get('dailyDone') === dc.date;
+  const existing = document.getElementById('dailyChallengeCard');
+  if (existing) existing.remove();
+
+  const card = document.createElement('div');
+  card.id = 'dailyChallengeCard';
+  card.style.cssText = `
+    background:rgba(255,215,0,.07);border:1.5px solid rgba(255,215,0,.3);
+    border-radius:18px;padding:14px 22px;margin:10px 0 0;text-align:center;
+    max-width:280px;width:88%;pointer-events:all;cursor:${done?'default':'pointer'};
+    transition:all .2s;`;
+  card.innerHTML = `
+    <div style="font-size:11px;color:#ffd700;letter-spacing:3px;font-weight:700;margin-bottom:4px;">⚡ DAILY CHALLENGE</div>
+    <div style="color:#fff;font-size:15px;font-weight:900;">${dc.label}</div>
+    <div style="color:#6677aa;font-size:12px;margin:3px 0 8px;">${dc.desc}</div>
+    <div style="font-size:20px;">${done ? '✅ Completed!' : '🎯 Play Now'}</div>`;
+  if (!done) {
+    card.onmouseenter = () => card.style.background = 'rgba(255,215,0,.14)';
+    card.onmouseleave = () => card.style.background = 'rgba(255,215,0,.07)';
+    card.onclick = () => {
+      if (dc.level >= 0) startLevel(dc.level);
+      else startEndlessGame();
+      window._dailyChallenge = dc;
+    };
+  }
+  const homeScreen = document.getElementById('scHome');
+  homeScreen.appendChild(card);
+}
+
+function checkDailyChallenge() {
+  const dc = window._dailyChallenge;
+  if (!dc) return;
+  const done = SAVE.get('dailyDone') === dc.date;
+  if (done) return;
+  let passed = false;
+  if (dc.key === 'score'  && score >= dc.goal)   passed = true;
+  if (dc.key === 'sliced' && sliced >= dc.goal)  passed = true;
+  if (dc.key === 'lives'  && lives >= dc.goal)   passed = true;
+  if (dc.key === 'combo'  && bestCombo >= dc.goal) passed = true;
+  if (dc.key === 'missed' && missed <= dc.goal)  passed = true;
+  if (passed) {
+    SAVE.set('dailyDone', dc.date);
+    window._dailyChallenge = null;
+    queueToast('🗓️', 'Daily Done!', 'Challenge complete! +Bonus');
+    score += 150;
+    updateHUD();
+  }
+}
+
+// ══════════════════════════════════════
+//  FRUIT STREAK TRACKER
+// ══════════════════════════════════════
+let streakType = null, streakCount = 0;
+
+function trackStreak(fruitName) {
+  if (fruitName === streakType) {
+    streakCount++;
+    if (streakCount === 3) {
+      spawnFloatText(W/2, H*0.35, `${streakType.toUpperCase()} STREAK ×3!`, '#ff6b35', 26);
+      score += 30; updateHUD();
+      queueToast('🎯', 'Fruit Streak!', `3× ${streakType} in a row!`);
+    }
+  } else {
+    streakType = fruitName;
+    streakCount = 1;
+  }
+}
+
+// ══════════════════════════════════════
+//  PATCH sliceObject → add streak + daily + achievement hooks
+// ══════════════════════════════════════
+const _origSlice = sliceObject;
+sliceObject = function(obj, silent=false) {
+  _origSlice(obj, silent);
+  if (!obj.isBomb && !obj.isPU && obj.fruit) {
+    trackStreak(obj.fruit.name);
+    checkDailyChallenge();
+  }
+};
+
+// ══════════════════════════════════════
+//  PATCH endGame / levelComplete → achievements
+// ══════════════════════════════════════
+const _origEndGame = endGame;
+endGame = function() {
+  _origEndGame();
+  const lb = SAVE.get('leaderboard') || [];
+  const stats = {
+    totalSliced:  sliced,
+    bestCombo,
+    highScore:    score,
+    perfectLevel: missed === 0 && !isEndless,
+    endlessBest:  isEndless ? sliced : 0,
+    levelsCleared: Object.keys(SAVE.get('levelStars') || {}).length,
+  };
+  checkAchievements(stats);
+  stopMusic();
+};
+
+const _origLevelComplete = levelComplete;
+levelComplete = function() {
+  _origLevelComplete();
+  const stars = SAVE.get('levelStars') || {};
+  const stats = {
+    totalSliced:  sliced,
+    bestCombo,
+    highScore:    score,
+    perfectLevel: missed === 0,
+    endlessBest:  0,
+    levelsCleared: Object.keys(stars).length,
+  };
+  checkAchievements(stats);
+  stopMusic();
+};
+
+// ══════════════════════════════════════
+//  PATCH startLevel / startEndlessGame → music
+// ══════════════════════════════════════
+const _origStartLevel = startLevel;
+startLevel = function(idx) {
+  stopMusic();
+  _origStartLevel(idx);
+  setTimeout(() => { if (cfg.music && audioCtx) startMusic(); }, 400);
+};
+
+const _origStartEndless = startEndlessGame;
+startEndlessGame = function() {
+  stopMusic();
+  _origStartEndless();
+  setTimeout(() => { if (cfg.music && audioCtx) startMusic(); }, 400);
+};
+
+// ══════════════════════════════════════
+//  ACHIEVEMENTS SCREEN
+// ══════════════════════════════════════
+function buildAchievementsScreen() {
+  const unlocked = SAVE.get('achievements') || {};
+  const existing = document.getElementById('scAchievements');
+  if (existing) existing.remove();
+
+  const sc = document.createElement('div');
+  sc.className = 'screen'; sc.id = 'scAchievements';
+  sc.innerHTML = `
+    <div class="screen-bg"></div>
+    <div style="color:#fff;font-size:26px;font-weight:900;margin-bottom:6px;">🏅 Achievements</div>
+    <div style="color:#4a5a7a;font-size:12px;letter-spacing:3px;margin-bottom:18px;">
+      ${Object.keys(unlocked).length} / ${ACHIEVEMENTS.length} UNLOCKED
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:680px;width:94%;
+      max-height:62vh;overflow-y:auto;padding:4px;">
+      ${ACHIEVEMENTS.map(a => {
+        const got = !!unlocked[a.id];
+        return `<div style="background:${got?'rgba(255,215,0,.1)':'rgba(255,255,255,.04)'};
+          border:1.5px solid ${got?'rgba(255,215,0,.4)':'rgba(255,255,255,.08)'};
+          border-radius:14px;padding:12px 14px;opacity:${got?1:.45};">
+          <span style="font-size:22px;">${got?a.icon:'🔒'}</span>
+          <div style="color:${got?'#ffd700':'#6677aa'};font-size:12px;font-weight:900;margin:3px 0 1px;">${a.label}</div>
+          <div style="color:#4a5a7a;font-size:11px;">${a.desc}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn ghost sm" style="margin-top:18px;" onclick="showScreen('scHome')">← Back</button>`;
+  document.body.appendChild(sc);
+}
+
+// ══════════════════════════════════════
+//  ADD ACHIEVEMENTS BUTTON TO HOME
+// ══════════════════════════════════════
+(function() {
+  const homeButtons = document.querySelector('#scHome .btn.ghost[onclick="showScreen(\'scSettings\')"]');
+  if (homeButtons) {
+    const btn = document.createElement('button');
+    btn.className = 'btn ghost';
+    btn.textContent = '🏅 Achievements';
+    btn.onclick = () => { buildAchievementsScreen(); showScreen('scAchievements'); };
+    homeButtons.parentNode.insertBefore(btn, homeButtons);
+  }
+})();
+
+// ══════════════════════════════════════
+//  SWIPE HINT (first visit)
+// ══════════════════════════════════════
+(function() {
+  if (SAVE.get('hintSeen')) return;
+  SAVE.set('hintSeen', true);
+  const hint = document.createElement('div');
+  hint.style.cssText = `
+    position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,.75);border:1px solid rgba(255,255,255,.15);
+    border-radius:24px;padding:10px 24px;color:#aabb;font-size:13px;
+    pointer-events:none;z-index:400;text-align:center;
+    animation:floatY 2s ease-in-out infinite;`;
+  hint.innerHTML = '👆 Swipe across fruits to slice them!';
+  document.body.appendChild(hint);
+  setTimeout(() => hint.style.opacity = '0', 5000);
+  setTimeout(() => hint.remove(), 5500);
+})();
+
+// ══════════════════════════════════════
+//  INJECT MISSING CSS AT RUNTIME
+// ══════════════════════════════════════
+(function injectCSS() {
+  const s = document.createElement('style');
+  s.textContent = `
+    @keyframes shockwave {
+      0%   { opacity:.9; transform:scale(1);   }
+      60%  { opacity:.4; transform:scale(1.05);}
+      100% { opacity:0;  transform:scale(1.1); }
+    }
+    @keyframes fadeSlideUp {
+      0%   { opacity:0; transform:translateY(18px); }
+      100% { opacity:1; transform:translateY(0);    }
+    }
+    .anim-in { animation: fadeSlideUp .35s ease-out forwards; }
+
+    /* Stats overlay (in-game, bottom-right) */
+    #statsOverlay {
+      position:fixed;bottom:22px;right:18px;
+      background:rgba(0,0,5,.65);border:1px solid rgba(255,255,255,.1);
+      border-radius:14px;padding:8px 14px;pointer-events:none;z-index:110;
+      display:none;flex-direction:column;gap:3px;
+    }
+    .sov { font-size:11px; color:#6677aa; letter-spacing:1px; }
+    .sov span { color:#ffd700; font-weight:700; font-size:13px; }
+
+    /* home high-score chip */
+    #homeHSChip {
+      background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.28);
+      border-radius:24px;padding:6px 20px;margin-bottom:10px;
+      color:#ffd700;font-size:13px;font-weight:700;letter-spacing:2px;
+      display:none;
+    }
+
+    /* keyboard shortcut bar */
+    #kbHint {
+      position:fixed;bottom:8px;right:14px;
+      color:#2a3050;font-size:11px;pointer-events:none;z-index:50;
+      display:none;letter-spacing:1px;
+    }
+
+    /* freeze overlay tint on canvas */
+    #freezeTint {
+      position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(100,200,255,.07);pointer-events:none;
+      z-index:90;display:none;
+      border:2px solid rgba(100,200,255,.25);
+    }
+    /* frenzy pulse */
+    #frenzyGlow {
+      position:fixed;top:0;left:0;width:100%;height:100%;
+      pointer-events:none;z-index:90;display:none;
+      box-shadow:inset 0 0 60px rgba(255,165,0,.2);
+    }
+
+    /* powerup slot pulse */
+    @keyframes puPulse {
+      0%,100% { box-shadow: 0 0 6px rgba(255,215,0,.3); }
+      50%      { box-shadow: 0 0 18px rgba(255,215,0,.8); }
+    }
+    .active-pu { animation: puPulse 1s ease-in-out infinite; }
+
+    /* mobile touch target for pause */
+    @media (max-width:600px) {
+      #pauseBtn { width:48px;height:48px;font-size:20px; }
+      .hud-score { font-size:20px; }
+    }
+
+    /* scrollbar style for leaderboard / achievements */
+    #lbList::-webkit-scrollbar,
+    #scAchievements div::-webkit-scrollbar { width:4px; }
+    #lbList::-webkit-scrollbar-thumb,
+    #scAchievements div::-webkit-scrollbar-thumb {
+      background:rgba(255,107,53,.4);border-radius:2px;
+    }
+  `;
+  document.head.appendChild(s);
+})();
+
+// ══════════════════════════════════════
+//  INJECT RUNTIME DOM ELEMENTS
+// ══════════════════════════════════════
+(function injectDOM() {
+  // Stats overlay
+  const ov = document.createElement('div');
+  ov.id = 'statsOverlay';
+  ov.innerHTML = `
+    <div class="sov">COMBO  <span id="soCombo">×0</span></div>
+    <div class="sov">MISSED <span id="soMissed">0</span></div>
+    <div class="sov">SLICED <span id="soSliced">0</span></div>`;
+  document.body.appendChild(ov);
+
+  // Freeze tint
+  const ft = document.createElement('div'); ft.id='freezeTint';
+  document.body.appendChild(ft);
+
+  // Frenzy glow
+  const fg = document.createElement('div'); fg.id='frenzyGlow';
+  document.body.appendChild(fg);
+
+  // Keyboard hint
+  const kb = document.createElement('div'); kb.id='kbHint';
+  kb.textContent = 'P = pause  •  ESC = pause';
+  document.body.appendChild(kb);
+
+  // Home high-score chip (insert before tagline)
+  const chip = document.createElement('div'); chip.id='homeHSChip';
+  chip.textContent = '🏆 BEST: 0';
+  const tagline = document.querySelector('#scHome .tagline');
+  if (tagline) tagline.parentNode.insertBefore(chip, tagline.nextSibling);
+})();
+
+// ══════════════════════════════════════
+//  HIGH-SCORE CHIP UPDATER
+// ══════════════════════════════════════
+function refreshHomeChip() {
+  const best = SAVE.get('bestScore') || 0;
+  const chip = document.getElementById('homeHSChip');
+  if (!chip) return;
+  if (best > 0) {
+    chip.style.display = 'block';
+    chip.textContent = `🏆 BEST: ${best}`;
+  }
+}
+
+// ══════════════════════════════════════
+//  STATS OVERLAY UPDATER (called each frame)
+// ══════════════════════════════════════
+function updateStatsOverlay() {
+  const ov = document.getElementById('statsOverlay');
+  if (!ov || state !== 'playing') { if(ov) ov.style.display='none'; return; }
+  ov.style.display = 'flex';
+  document.getElementById('soCombo').textContent  = '×' + combo;
+  document.getElementById('soMissed').textContent = missed;
+  document.getElementById('soSliced').textContent = sliced;
+}
+
+// ══════════════════════════════════════
+//  POWERUP VISUAL FX UPDATER
+// ══════════════════════════════════════
+function updatePowerupFX() {
+  const ft = document.getElementById('freezeTint');
+  const fg = document.getElementById('frenzyGlow');
+  if (ft) ft.style.display = (activePU.freeze > 0) ? 'block' : 'none';
+  if (fg) fg.style.display = (activePU.frenzy > 0) ? 'block' : 'none';
+}
+
+// ══════════════════════════════════════
+//  HOOK LOOP → stats + FX updates
+// ══════════════════════════════════════
+const _origLoop = loop;
+// We can't directly wrap requestAnimationFrame, so instead
+// patch via a post-frame side-effect queue
+let _raf_hooks = [];
+function addLoopHook(fn) { _raf_hooks.push(fn); }
+
+// Monkey-patch rAF to run hooks after each frame
+const _origRAF = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = function(cb) {
+  return _origRAF(function(ts) {
+    cb(ts);
+    _raf_hooks.forEach(h => { try { h(ts); } catch {} });
+  });
+};
+
+addLoopHook(() => {
+  updateStatsOverlay();
+  updatePowerupFX();
+  syncMusic();
+});
+
+// ══════════════════════════════════════
+//  MUSIC TOGGLE FIX
+//  Override tog() to also sync music state
+// ══════════════════════════════════════
+const _origTog = tog;
+tog = function(key) {
+  _origTog(key);
+  if (key === 'music') {
+    if (cfg.music && audioCtx && state === 'playing' && !musicPlaying) startMusic();
+    if (!cfg.music) stopMusic();
+  }
+};
+
+// ══════════════════════════════════════
+//  KEYBOARD SHORTCUT: M = mute music
+// ══════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.code === 'KeyM') {
+    cfg.music = !cfg.music;
+    const el = document.getElementById('togMusic');
+    if (el) { if (cfg.music) el.classList.add('on'); else el.classList.remove('on'); }
+    if (cfg.music && audioCtx && state === 'playing') startMusic();
+    else stopMusic();
+  }
+  if (e.code === 'KeyS') {
+    cfg.sfx = !cfg.sfx;
+    const el = document.getElementById('togSfx');
+    if (el) { if (cfg.sfx) el.classList.add('on'); else el.classList.remove('on'); }
+  }
+});
+
+// ══════════════════════════════════════
+//  SHOW KB HINT ON DESKTOP
+// ══════════════════════════════════════
+(function() {
+  if (window.matchMedia('(hover:hover)').matches) {
+    const kb = document.getElementById('kbHint');
+    if (kb) kb.style.display = 'block';
+  }
+})();
+
+// ══════════════════════════════════════
+//  PATCH showScreen → refresh home chip
+//  + stop music when going to menu
+// ══════════════════════════════════════
+const _origShowScreen = showScreen;
+showScreen = function(id) {
+  stopMusic();
+  _origShowScreen(id);
+  if (id === 'scHome') {
+    refreshHomeChip();
+    state = 'home'; // ensure bg particles animate
+  }
+};
+
+// ══════════════════════════════════════
+//  PATCH endGame → persist endless best
+// ══════════════════════════════════════
+// (already wrapped once; add high-score save)
+const _origEndGame2 = endGame;
+endGame = function() {
+  if (isEndless) {
+    const prev = SAVE.get('bestScore') || 0;
+    if (score > prev) SAVE.set('bestScore', score);
+  }
+  _origEndGame2();
+  refreshHomeChip();
+};
+
+// ══════════════════════════════════════
+//  MULTI-SPAWN on later endless waves
+//  (corrects single-fruit trickle at high diff)
+// ══════════════════════════════════════
+const _origSpawnObj = spawnObj;
+spawnObj = function() {
+  _origSpawnObj();
+  // At high difficulty in endless, occasionally throw a second fruit
+  if (isEndless && endless_diff > 1.5 && Math.random() < 0.35) {
+    setTimeout(() => { if (state==='playing') _origSpawnObj(); }, 160);
+  }
+};
+
+// ══════════════════════════════════════
+//  PARTICLE: juice splash ring on slice
+// ══════════════════════════════════════
+const _origSliceObject2 = sliceObject;
+sliceObject = function(obj, silent=false) {
+  _origSliceObject2(obj, silent);
+  // Draw a quick expanding ring via a short-lived canvas arc particle
+  if (!obj.isBomb && !obj.isPU && obj.fruit && !silent) {
+    particles.push({
+      x: obj.x, y: obj.y,
+      vx:0, vy:0,
+      color: obj.fruit.color,
+      alpha:0.7, size: obj.size * 0.5,
+      life:0.25, maxLife:0.25,
+      isRing: true, maxSize: obj.size * 2.5,
+    });
+  }
+};
+
+// ══════════════════════════════════════
+//  PATCH particle renderer for rings
+// ══════════════════════════════════════
+// We hook into the existing particle loop by extending the filter callback.
+// The ring particles have isRing:true and are drawn differently.
+// Since the particle loop is inside loop() and we can't surgically edit it,
+// we use a separate overlay array rendered in the rAF hook.
+let rings = [];
+addLoopHook(() => {
+  // Move ring particles out of the main array into rings[]
+  if (!particles) return;
+  const keep = [], extracted = [];
+  particles.forEach(p => { if (p.isRing) extracted.push(p); else keep.push(p); });
+  particles.length = 0; keep.forEach(p => particles.push(p));
+
+  // Update and draw rings on the main canvas
+  extracted.forEach(p => {
+    p.life -= 0.016; // ~1 frame at 60fps
+    if (p.life <= 0) return;
+    p.alpha = p.life / p.maxLife * 0.7;
+    const progress = 1 - (p.life / p.maxLife);
+    const r = p.size + (p.maxSize - p.size) * progress;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = p.color;
+    ctx.lineWidth = 3 * p.alpha;
+    ctx.globalAlpha = p.alpha;
+    ctx.stroke();
+    ctx.restore();
+    if (p.life > 0) rings.push(p); // re-queue
+  });
+  particles.push(...rings);
+  rings = [];
+});
+
+// ══════════════════════════════════════
+//  SCORE MILESTONE TOASTS
+// ══════════════════════════════════════
+let _lastMilestone = 0;
+addLoopHook(() => {
+  if (state !== 'playing') return;
+  const milestones = [100, 250, 500, 1000, 2000, 3500, 5000];
+  milestones.forEach(m => {
+    if (score >= m && _lastMilestone < m) {
+      _lastMilestone = m;
+      queueToast('🎉', `${m} Points!`, 'Score milestone reached!');
+    }
+  });
+});
+
+// Reset milestone tracker on new game
+const _origSL2 = startLevel;
+startLevel = function(idx) {
+  _lastMilestone = 0; streakType = null; streakCount = 0;
+  _origSL2(idx);
+};
+const _origSEG2 = startEndlessGame;
+startEndlessGame = function() {
+  _lastMilestone = 0; streakType = null; streakCount = 0;
+  _origSEG2();
+};
+
+// ══════════════════════════════════════
+//  FIX: set state='home' so bgCanvas draws
+// ══════════════════════════════════════
+state = 'home';
+refreshHomeChip();
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+buildLevelGrid();
+buildDailyChallenge();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
